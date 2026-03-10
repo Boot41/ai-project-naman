@@ -1,0 +1,62 @@
+[
+  {
+    "id": 1,
+    "incident_key": "INC-2026-0001",
+    "title": "Checkout failures due to payment timeout",
+    "status": "resolved",
+    "severity": "sev1",
+    "started_at": "2026-03-05T09:12:00",
+    "resolved_at": "2026-03-05T10:05:00",
+    "summary": "Customers could not complete checkout for 53 minutes.",
+    "created_by_user_id": 1,
+    "commander_user_id": 2
+  },
+  {
+    "id": 2,
+    "incident_key": "INC-2026-0002",
+    "title": "Search latency spike in production",
+    "status": "mitigated",
+    "severity": "sev2",
+    "started_at": "2026-03-06T14:20:00",
+    "resolved_at": null,
+    "summary": "P95 search latency increased above 2s for web users.",
+    "created_by_user_id": 3,
+    "commander_user_id": 4
+  },
+  {
+    "id": 3,
+    "incident_key": "INC-2026-0003",
+    "title": "Notification delivery backlog",
+    "status": "investigating",
+    "severity": "sev3",
+    "started_at": "2026-03-07T07:40:00",
+    "resolved_at": null,
+    "summary": "Email and SMS notifications delayed during traffic burst.",
+    "created_by_user_id": 5,
+    "commander_user_id": null
+  },
+  {
+    "id": 4,
+    "incident_key": "INC-2026-0004",
+    "title": "Payment service outage affecting order placement",
+    "status": "resolved",
+    "severity": "sev1",
+    "started_at": "2026-03-08T11:05:00",
+    "resolved_at": "2026-03-08T12:10:00",
+    "summary": "Payment API downtime caused checkout failures and degraded order flow.",
+    "created_by_user_id": 2,
+    "commander_user_id": 1
+  },
+  {
+    "id": 5,
+    "incident_key": "INC-2026-0005",
+    "title": "Analytics and reporting latency increase",
+    "status": "mitigated",
+    "severity": "sev3",
+    "started_at": "2026-03-09T16:15:00",
+    "resolved_at": null,
+    "summary": "Analytics pipeline slowdown impacted reporting freshness and dashboard load times.",
+    "created_by_user_id": 4,
+    "commander_user_id": 5
+  }
+]

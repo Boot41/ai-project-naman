@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.passwords import verify_password
 from app.core.config import get_settings
-from app.db.models import RefreshToken, User
+from app.db.models import User
 
 ACCESS_TOKEN_TTL_SECONDS = 15 * 60
 REFRESH_TOKEN_TTL_DAYS = 7
@@ -67,14 +67,11 @@ async def login(
 
     access_token = _create_access_token(user)
     refresh_plain = _new_refresh_token()
-    refresh_record = RefreshToken(
-        id=uuid4(),
-        user_id=user.id,
-        token_hash=_refresh_token_hash(refresh_plain),
-        issued_at=_now_db_utc(),
-        expires_at=_now_db_utc() + timedelta(days=REFRESH_TOKEN_TTL_DAYS),
-    )
-    db.add(refresh_record)
+    now = _now_db_utc()
+    user.refresh_token_hash = _refresh_token_hash(refresh_plain)
+    user.refresh_token_issued_at = now
+    user.refresh_token_expires_at = now + timedelta(days=REFRESH_TOKEN_TTL_DAYS)
+    user.refresh_token_revoked_at = None
     await db.commit()
     return access_token, refresh_plain, user
 
@@ -83,36 +80,39 @@ async def refresh_tokens(
     db: AsyncSession, refresh_token: str
 ) -> tuple[str | None, str | None, User | None]:
     result = await db.execute(
-        select(RefreshToken).where(RefreshToken.token_hash == _refresh_token_hash(refresh_token))
+        select(User).where(User.refresh_token_hash == _refresh_token_hash(refresh_token))
     )
-    token_row = result.scalar_one_or_none()
+    user = result.scalar_one_or_none()
     now = _now_db_utc()
-    if token_row is None or token_row.revoked_at is not None or token_row.expires_at <= now:
+    if user is None:
         return None, None, None
 
-    user_result = await db.execute(select(User).where(User.id == token_row.user_id))
-    user = user_result.scalar_one_or_none()
-    if user is None or not user.is_active or user.role != "operations_engineer":
+    if (
+        user.refresh_token_expires_at is None
+        or user.refresh_token_expires_at <= now
+        or user.refresh_token_revoked_at is not None
+        or not user.is_active
+        or user.role != "operations_engineer"
+    ):
         return None, None, None
 
-    # Keep refresh flow simple for MVP: renew the same DB row with a new opaque token.
+    # Keep refresh flow simple for MVP: renew token fields on the user row.
     new_refresh_plain = _new_refresh_token()
-    token_row.token_hash = _refresh_token_hash(new_refresh_plain)
-    token_row.issued_at = now
-    token_row.expires_at = now + timedelta(days=REFRESH_TOKEN_TTL_DAYS)
-    token_row.revoked_at = None
-    token_row.replaced_by_token_id = None
+    user.refresh_token_hash = _refresh_token_hash(new_refresh_plain)
+    user.refresh_token_issued_at = now
+    user.refresh_token_expires_at = now + timedelta(days=REFRESH_TOKEN_TTL_DAYS)
+    user.refresh_token_revoked_at = None
     await db.commit()
     return _create_access_token(user), new_refresh_plain, user
 
 
 async def logout(db: AsyncSession, refresh_token: str) -> bool:
     result = await db.execute(
-        select(RefreshToken).where(RefreshToken.token_hash == _refresh_token_hash(refresh_token))
+        select(User).where(User.refresh_token_hash == _refresh_token_hash(refresh_token))
     )
-    token_row = result.scalar_one_or_none()
-    if token_row is None or token_row.revoked_at is not None:
+    user = result.scalar_one_or_none()
+    if user is None or user.refresh_token_revoked_at is not None:
         return False
-    token_row.revoked_at = _now_db_utc()
+    user.refresh_token_revoked_at = _now_db_utc()
     await db.commit()
     return True

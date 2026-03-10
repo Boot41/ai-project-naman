@@ -1,0 +1,47 @@
+[
+  {
+    "id": 1,
+    "service_id": 3,
+    "name": "Payments On-Call",
+    "contact_type": "slack",
+    "contact_value": "#oncall-payments",
+    "priority_order": 1,
+    "is_primary": true
+  },
+  {
+    "id": 2,
+    "service_id": 3,
+    "name": "Payments Manager",
+    "contact_type": "email",
+    "contact_value": "payments-manager@example.com",
+    "priority_order": 2,
+    "is_primary": false
+  },
+  {
+    "id": 3,
+    "service_id": 8,
+    "name": "Search On-Call",
+    "contact_type": "pagerduty",
+    "contact_value": "PD-SEARCH-PRIMARY",
+    "priority_order": 1,
+    "is_primary": true
+  },
+  {
+    "id": 4,
+    "service_id": 7,
+    "name": "Notifications On-Call",
+    "contact_type": "slack",
+    "contact_value": "#oncall-notifications",
+    "priority_order": 1,
+    "is_primary": true
+  },
+  {
+    "id": 5,
+    "service_id": 1,
+    "name": "Platform Commander",
+    "contact_type": "phone",
+    "contact_value": "+1-555-123-4567",
+    "priority_order": 1,
+    "is_primary": true
+  }
+]

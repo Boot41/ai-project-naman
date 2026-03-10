@@ -1,0 +1,107 @@
+[
+  {
+    "id": 1,
+    "name": "api-gateway",
+    "tier": "critical",
+    "owner_user_id": 1,
+    "runbook_path": "docs/runbooks/api-gateway.md"
+  },
+  {
+    "id": 2,
+    "name": "auth-service",
+    "tier": "critical",
+    "owner_user_id": 2,
+    "runbook_path": "docs/runbooks/auth-service.md"
+  },
+  {
+    "id": 3,
+    "name": "payment-service",
+    "tier": "critical",
+    "owner_user_id": 3,
+    "runbook_path": "docs/runbooks/payment-service.md"
+  },
+  {
+    "id": 4,
+    "name": "user-service",
+    "tier": "high",
+    "owner_user_id": 1,
+    "runbook_path": "docs/runbooks/user-service.md"
+  },
+  {
+    "id": 5,
+    "name": "order-service",
+    "tier": "high",
+    "owner_user_id": 2,
+    "runbook_path": "docs/runbooks/order-service.md"
+  },
+  {
+    "id": 6,
+    "name": "inventory-service",
+    "tier": "medium",
+    "owner_user_id": 3,
+    "runbook_path": "docs/runbooks/inventory-service.md"
+  },
+  {
+    "id": 7,
+    "name": "notification-service",
+    "tier": "medium",
+    "owner_user_id": 4,
+    "runbook_path": "docs/runbooks/notification-service.md"
+  },
+  {
+    "id": 8,
+    "name": "search-service",
+    "tier": "medium",
+    "owner_user_id": 4,
+    "runbook_path": "docs/runbooks/search-service.md"
+  },
+  {
+    "id": 9,
+    "name": "analytics-service",
+    "tier": "low",
+    "owner_user_id": 5,
+    "runbook_path": "docs/runbooks/analytics-service.md"
+  },
+  {
+    "id": 10,
+    "name": "reporting-service",
+    "tier": "low",
+    "owner_user_id": 5,
+    "runbook_path": "docs/runbooks/reporting-service.md"
+  },
+  {
+    "id": 11,
+    "name": "billing-service",
+    "tier": "high",
+    "owner_user_id": 3,
+    "runbook_path": "docs/runbooks/billing-service.md"
+  },
+  {
+    "id": 12,
+    "name": "fraud-detection-service",
+    "tier": "critical",
+    "owner_user_id": 2,
+    "runbook_path": "docs/runbooks/fraud-detection-service.md"
+  },
+  {
+    "id": 13,
+    "name": "catalog-service",
+    "tier": "medium",
+    "owner_user_id": 4,
+    "runbook_path": "docs/runbooks/catalog-service.md"
+  },
+  {
+    "id": 14,
+    "name": "shipping-service",
+    "tier": "high",
+    "owner_user_id": 1,
+    "runbook_path": "docs/runbooks/shipping-service.md"
+  },
+  {
+    "id": 15,
+    "name": "recommendation-service",
+    "tier": "low",
+    "owner_user_id": 5,
+    "runbook_path": "docs/runbooks/recommendation-service.md"
+  }
+]

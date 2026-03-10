@@ -1,0 +1,37 @@
+[
+  {
+    "id": 1,
+    "incident_id": 1,
+    "tag": "checkout"
+  },
+  {
+    "id": 2,
+    "incident_id": 1,
+    "tag": "payments"
+  },
+  {
+    "id": 3,
+    "incident_id": 1,
+    "tag": "timeout"
+  },
+  {
+    "id": 4,
+    "incident_id": 2,
+    "tag": "search"
+  },
+  {
+    "id": 5,
+    "incident_id": 2,
+    "tag": "latency"
+  },
+  {
+    "id": 6,
+    "incident_id": 3,
+    "tag": "notifications"
+  },
+  {
+    "id": 7,
+    "incident_id": 3,
+    "tag": "queue"
+  }
+]

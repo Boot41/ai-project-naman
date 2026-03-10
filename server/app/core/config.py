@@ -17,6 +17,8 @@ class Settings(BaseSettings):
     secret_key: str = "app-scaffold-dev-secret-key-32-bytes-min"
     google_api_key: str = ""
     google_genai_use_vertexai: bool = False
+    ops_agent_base_url: str = "http://localhost:8010"
+    ops_agent_timeout_seconds: float = 20.0
 
     @property
     def effective_db_url(self) -> str:

@@ -7,7 +7,6 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agent.agent import run_agent
 from app.api.deps import db_session
 from app.auth.deps import current_user
 from app.db.models import User
@@ -144,7 +143,6 @@ async def post_message(
         user_id=user.id,
         content_text=body.content_text,
         structured_json=body.structured_json,
-        assistant_runner=run_agent,
     )
     if user_message is None or assistant_message is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")

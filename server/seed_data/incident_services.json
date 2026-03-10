@@ -1,0 +1,57 @@
+[
+  {
+    "incident_id": 1,
+    "service_id": 1,
+    "impact_type": "latency"
+  },
+  {
+    "incident_id": 1,
+    "service_id": 5,
+    "impact_type": "degraded"
+  },
+  {
+    "incident_id": 1,
+    "service_id": 3,
+    "impact_type": "errors"
+  },
+  {
+    "incident_id": 2,
+    "service_id": 8,
+    "impact_type": "latency"
+  },
+  {
+    "incident_id": 2,
+    "service_id": 4,
+    "impact_type": "degraded"
+  },
+  {
+    "incident_id": 3,
+    "service_id": 7,
+    "impact_type": "errors"
+  },
+  {
+    "incident_id": 3,
+    "service_id": 4,
+    "impact_type": "degraded"
+  },
+  {
+    "incident_id": 4,
+    "service_id": 3,
+    "impact_type": "down"
+  },
+  {
+    "incident_id": 4,
+    "service_id": 5,
+    "impact_type": "degraded"
+  },
+  {
+    "incident_id": 5,
+    "service_id": 9,
+    "impact_type": "latency"
+  },
+  {
+    "incident_id": 5,
+    "service_id": 10,
+    "impact_type": "degraded"
+  }
+]

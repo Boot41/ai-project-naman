@@ -48,7 +48,7 @@ The backend supports:
 1. `POST /auth/login`
 - Input: username/email + password.
 - Returns: `access_token`, `refresh_token`, `token_type`, `expires_in`, user profile.
-- Persists refresh-token hash in `refresh_tokens`.
+- Persists refresh-token hash in `users`.
 
 2. `POST /auth/refresh`
 - Input: refresh token.
@@ -83,6 +83,10 @@ Columns:
 - `role` (`operations_engineer`; default `operations_engineer`)
 - `password_hash`
 - `is_active`
+- `refresh_token_hash` (nullable, unique)
+- `refresh_token_issued_at` (nullable)
+- `refresh_token_expires_at` (nullable)
+- `refresh_token_revoked_at` (nullable)
 - `created_at`
 - `updated_at`
 
@@ -94,7 +98,6 @@ Columns:
 - `name` (unique)
 - `tier` (`critical | high | medium | low`)
 - `owner_user_id` (FK -> `users.id`)
-- `repo_url` (nullable)
 - `runbook_path` (nullable filesystem path)
 - `created_at`
 
@@ -240,24 +243,7 @@ Columns:
 - `confidence_score` (numeric, nullable)
 - `created_at`
 
-### 4.4 Auth Session Management
-
-#### `refresh_tokens`
-Purpose: refresh-token lifecycle and revocation.
-
-Columns:
-- `id` (UUID PK)
-- `user_id` (FK -> `users.id`)
-- `token_hash` (unique)
-- `issued_at`
-- `expires_at`
-- `revoked_at` (nullable)
-- `replaced_by_token_id` (self FK, nullable)
-- `user_agent` (nullable)
-- `ip_address` (nullable)
-- `created_at`
-
-## 5. Final Table List (13)
+## 5. Final Table List (12)
 - `users`
 - `services`
 - `service_dependencies`
@@ -270,12 +256,10 @@ Columns:
 - `sessions`
 - `messages`
 - `investigation_evidence`
-- `refresh_tokens`
 
 ## 6. Relationship Overview
 - `users` 1:N `services` (`owner_user_id`)
 - `users` 1:N `sessions`
-- `users` 1:N `refresh_tokens`
 - `services` N:M `services` via `service_dependencies` (directed)
 - `services` N:M `incidents` via `incident_services`
 - `services` 1:N `escalation_contacts`
@@ -311,9 +295,3 @@ Assistant responses should follow and persist this JSON shape in `messages.struc
 - Schema integrity tests: FK/unique/index constraints for ownership, dependencies, and escalation priority.
 - Conversation tests: session/message ordering by (`session_id`, `created_at`), structured JSON persistence.
 - Investigation tests: evidence linkage (`investigation_evidence`) and incident report composition across incident, evidence, ownership, escalation, and historical data.
-
-## 9. Post-MVP (Deferred)
-- Multi-tenant scoping.
-- Document indexing/embeddings.
-- Additional roles and fine-grained RBAC.
-- SSO/OIDC.

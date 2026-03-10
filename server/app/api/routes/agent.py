@@ -1,22 +1,30 @@
 from __future__ import annotations
 
-from fastapi import APIRouter
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel, Field
 
-from app.agent.agent import run_agent
+from app.auth.deps import current_user
+from app.db.models import User
+from app.services.agent_client import AgentClientError, query_ops_agent
 
 router = APIRouter(prefix="/agent", tags=["agent"])
 
 
-class AgentRequest(BaseModel):
-    message: str
+class AgentQueryRequest(BaseModel):
+    message: str = Field(min_length=1)
 
 
-class AgentResponse(BaseModel):
+class AgentQueryResponse(BaseModel):
     reply: str
 
 
-@router.post("/run", response_model=AgentResponse)
-async def agent_run(body: AgentRequest) -> AgentResponse:
-    reply = await run_agent(body.message)
-    return AgentResponse(reply=reply)
+@router.post("/query", response_model=AgentQueryResponse)
+async def query_agent(
+    body: AgentQueryRequest,
+    user: User = Depends(current_user),
+) -> AgentQueryResponse:
+    try:
+        reply = await query_ops_agent(query=body.message, user_id=str(user.id))
+    except AgentClientError as exc:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
+    return AgentQueryResponse(reply=reply)

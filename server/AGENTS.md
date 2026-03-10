@@ -37,7 +37,7 @@ Public:
 - `POST /auth/logout`
 
 Protected (`/api/v1/*`):
-- `POST /api/v1/agent/run`
+- `POST /api/v1/agent/query`
 - `GET /api/v1/chat/sessions`
 - `POST /api/v1/chat/sessions`
 - `DELETE /api/v1/chat/sessions/{session_id}`
@@ -65,7 +65,6 @@ Core tables:
 - `sessions`
 - `messages`
 - `investigation_evidence`
-- `refresh_tokens`
 
 Chat model:
 - `sessions` stores conversation containers (chat-only mode)
