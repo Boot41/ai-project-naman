@@ -1,0 +1,261 @@
+Service Dependencies
+
+Architecture Explanation
+This document defines the dependency model for the OpsCopilot microservices platform so incident responders can quickly understand blast radius and likely fault origin. Dependencies are categorized as synchronous request dependencies, asynchronous event dependencies, and external dependencies. A dependency is considered critical if its failure can prevent order placement, authentication, or core platform access. The graph is intentionally directional: service A depends on service B when A cannot complete a required operation without B or without a bounded fallback.
+
+Core services in scope:
+- api-gateway
+- auth-service
+- payment-service
+- user-service
+- order-service
+- inventory-service
+- notification-service
+- search-service
+- analytics-service
+
+Service Relationships
+api-gateway
+- Synchronous dependencies: auth-service (token validation), order-service, user-service, payment-service, search-service, inventory-service.
+- Operational role: central ingress and policy enforcement. Symptoms here can be caused by downstream failures, so gateway alarms are often effect rather than cause.
+
+auth-service
+- Synchronous dependencies: user-service account status data, auth datastore.
+- Consumers: api-gateway and internal service clients requiring token validation.
+- Notes: failure often appears as widespread 401/503 across unrelated routes.
+
+user-service
+- Synchronous dependencies: user datastore.
+- Consumers: auth-service, order-service, api-gateway profile routes.
+- Notes: account status and profile lookups can indirectly impact login and checkout ownership validation.
+
+order-service
+- Synchronous dependencies: inventory-service for reservation checks, payment-service for charge authorization/capture, user-service for account linkage.
+- Asynchronous dependencies: notification-service, analytics-service via emitted order events.
+- Notes: orchestration service; high fan-out makes it sensitive to latency in any critical downstream.
+
+payment-service
+- Synchronous dependencies: external payment provider API, auth-service (service auth), payment datastore.
+- Asynchronous dependencies: notification-service and analytics-service for payment event propagation.
+- Notes: direct revenue dependency; timeout amplification risk when retries are misconfigured.
+
+inventory-service
+- Synchronous dependencies: inventory datastore.
+- Asynchronous consumers: search-service index ingestion, analytics-service.
+- Notes: stale inventory can cascade into search inaccuracies and checkout reservation failures.
+
+notification-service
+- Asynchronous dependencies: event bus, messaging provider (email/SMS/push).
+- Upstream producers: order-service, payment-service.
+- Notes: usually non-blocking for transaction completion but critical for customer communication and trust.
+
+search-service
+- Synchronous dependencies: search cluster, optional auth-service/user-service enrichment.
+- Asynchronous dependencies: inventory-service and order-service event streams for index freshness.
+- Notes: can degrade independently in freshness vs availability dimensions.
+
+analytics-service
+- Asynchronous dependencies: event streams from all domain services, analytics datastore.
+- Consumers: operations dashboards, business reporting, incident impact analysis.
+- Notes: platform may remain transactional even when analytics is delayed, but observability and decision quality degrade.
+
+Dependency Chains
+Critical synchronous chains:
+1. Platform access chain
+   client -> api-gateway -> auth-service -> user-service/datastore
+   Failure impact: widespread inability to authenticate or access protected APIs.
+
+2. Checkout chain
+   client -> api-gateway -> order-service -> inventory-service (reserve)
+   then order-service -> payment-service -> external provider
+   then order-service state commit
+   Failure impact: degraded or failed order placement, direct revenue loss.
+
+3. Search query chain
+   client -> api-gateway -> search-service -> search cluster
+   optional enrichment from auth-service/user-service
+   Failure impact: discoverability loss, increased support tickets, possible conversion drop.
+
+High-value asynchronous chains:
+1. Order completion chain
+   order-service event -> notification-service -> customer channel delivery.
+
+2. Payment telemetry chain
+   payment-service event -> analytics-service dashboards and alerts.
+
+3. Inventory freshness chain
+   inventory-service events -> search-service ingestion -> updated search results.
+
+4. Platform observability chain
+   service logs/metrics/traces -> analytics-service tooling -> OpsCopilot correlation and incident triage.
+
+Transitive Dependency Risks
+- auth-service degradation can indirectly impact every protected route because api-gateway depends on auth decisions before routing.
+- payment-service issues can backpressure order-service, then spill into api-gateway via retries and increased timeout rates.
+- inventory event lag can create search stale data; stale search can drive failed checkouts if unavailable items are selected.
+- analytics-service lag does not always break customer transactions but increases mean time to detect and assess incidents.
+
+Failure Containment Guidance
+- Prefer localized fail-fast for unhealthy downstream dependencies rather than broad retries.
+- Enforce retry budgets once per chain, not at every hop.
+- Use degraded modes where available:
+  - search-service without personalization
+  - notification-service queued retries without blocking order completion
+  - payment fallback provider routing for eligible methods
+- Apply route-level controls at api-gateway to protect critical paths during partial incidents.
+
+Dependency Priority Model
+- Priority A (must restore first): api-gateway, auth-service, order-service, payment-service.
+- Priority B (restore for correctness and conversion): inventory-service, search-service.
+- Priority C (restore for communication and visibility): notification-service, analytics-service.
+
+Operational Use In Incident Response
+1. Identify failing user journey (login, checkout, search, order status).
+2. Map journey to primary chain and immediate dependencies.
+3. Check transitive dependencies that commonly masquerade as primary faults.
+4. Confirm whether impact is synchronous availability, asynchronous freshness, or telemetry visibility.
+5. Select mitigation with lowest blast radius first: rollback, traffic shaping, degraded mode, then broader failover.
+
+This dependency model should be used jointly with service runbooks and incident severity policy to prioritize recovery actions and escalation timing.
+
+During high-uncertainty incidents, responders should explicitly mark each dependency as healthy, degraded, or unknown to avoid assumption drift. Unknown dependencies should be treated as potential amplifiers until verified by telemetry.
+
+Additional Architecture Navigation Data
+
+Dependency Risk Taxonomy
+- Hard dependency: request cannot complete without downstream success.
+- Soft dependency: request can complete in degraded mode.
+- Async dependency: impact appears as lag, freshness drift, or delayed communication.
+- External dependency: third-party or platform service with separate operational controls.
+
+Priority Recovery Ordering
+1. Authentication and ingress path stability.
+2. Revenue-critical transaction path stability.
+3. Discovery and correctness path stability.
+4. Communication and analytics path stability.
+
+Cross-Service Failure Patterns
+- Shared dependency slowdown causing broad latency increase.
+- One-service retry storm saturating adjacent services.
+- Async backlog masking success until delayed side effects appear.
+- Control-plane incidents that look like app errors but originate in orchestration or networking.
+
+Standard Triage Queries
+- Which user journey is currently broken?
+- Which dependency chain supports that journey?
+- Which node in chain first crossed SLO boundary?
+- Which mitigation has lowest blast radius and fastest reversibility?
+
+Architecture Evidence Model For Investigations
+- Time axis: first anomaly, first alert, first mitigation, stabilization, closure.
+- Component axis: ingress, identity, domain service, persistence, async pipeline, external provider.
+- Impact axis: availability, latency, correctness, freshness, observability.
+
+Operational Design Guardrails
+- Enforce bounded retries and timeout budgets at one layer only.
+- Keep idempotency at mutation boundaries.
+- Prefer fail-fast plus explicit degradation over hidden queue growth.
+- Preserve request correlation IDs across every synchronous and async boundary.
+- Define ownership for each dependency edge, not just each service node.
+
+Expansion Guidance For Future Docs
+- For long architecture guides, use segmented structure:
+  - <doc>/index.md
+  - section_01_overview.md
+  - section_02_dependency_graph.md
+  - section_03_failure_patterns.md
+- Keep section files independently retrievable with local context headers.
+- Ensure section names reflect investigation intent (diagnose, contain, recover, verify).
+
+
+Supplemental Deep-Dive Operations Appendix
+
+Decision Tree For Active Incidents
+1. Is customer impact rising right now?
+- Yes: prioritize containment over diagnosis depth.
+- No: complete root-cause isolation before applying risky mitigations.
+2. Is impact isolated to one user journey?
+- Yes: isolate by endpoint and dependency chain.
+- No: inspect shared controls (gateway, auth, networking, runtime config).
+3. Is integrity risk present?
+- Yes: pause risky mutations, engage compliance/security/finance path immediately.
+- No: continue with staged degradation and traffic management.
+
+Advanced Evidence Collection Pack
+- Capture per-minute error-rate and latency percentile snapshots during the first 20 minutes.
+- Preserve representative request/trace IDs for each affected endpoint class.
+- Compare successful and failing payload classes to detect conditional failures.
+- Build dependency health matrix with states: healthy, degraded, unknown, failed.
+- Attach rollout metadata to timeline: artifact id, config hash, zone, and rollout wave.
+
+Containment Patterns Library
+- Pattern A: Route shaping
+  - reduce non-critical traffic,
+  - enforce hard concurrency caps,
+  - preserve critical business path.
+- Pattern B: Dependency isolation
+  - disable optional enrichment,
+  - short-circuit failing upstream calls,
+  - enable fallback response mode.
+- Pattern C: Retry suppression
+  - remove nested retries,
+  - enforce backoff with jitter,
+  - cap outstanding inflight calls.
+- Pattern D: Backlog protection
+  - pause low-priority consumers,
+  - prioritize customer-facing workflows,
+  - monitor queue drain half-life.
+
+Recovery Confidence Checklist
+- Recovery confidence should not rely on one metric.
+- Require concurrent improvement in:
+  - user-facing success metrics,
+  - service p95/p99 latency,
+  - dependency error rates,
+  - queue lag and backlog,
+  - saturation and throttling indicators.
+- Keep 30 to 60 minute observation window before declaring full closure.
+
+Operational Debt Log Template
+- What temporary override was applied?
+- Who owns rollback and by when?
+- What metric confirms rollback safety?
+- What automation would remove this manual step next time?
+- What test should be added so this failure pattern is caught earlier?
+
+Cross-Team Coordination Model
+- SRE: incident command, system stabilization, and rollback orchestration.
+- Domain team: service-specific mitigations and code/config ownership.
+- Security/compliance: integrity and policy exception decisions.
+- Data/analytics: impact quantification and recovery confirmation on reporting side.
+- Support/comms: external-facing updates and customer narrative alignment.
+
+Post-Recovery Hardening Tasks
+- Add detectors for precursor signals seen in this incident class.
+- Create safe-mode configuration presets with explicit exit criteria.
+- Simulate similar failure in staging with replayed traffic pattern.
+- Update runbooks and postmortem templates with new validated steps.
+- Audit dashboard coverage to ensure first-response visibility within one pane.
+
+
+Targeted Expansion Addendum
+- Add explicit rollback trigger thresholds tied to business KPIs.
+- Capture a before/after metric snapshot for every mitigation step.
+- Maintain a bounded decision log to avoid conflicting concurrent actions.
+- Include a dependency verification pass before declaring resolution.
+- Require ownership and due date for every temporary override cleanup item.
+- Add replayable query/command snippets in future revisions for faster triage.
+- Improve handoff packet quality for long incidents with clear unresolved risks.
+
+
+Final Expansion Note
+This addendum extends operational depth with additional verification checkpoints, mitigation traceability requirements, and post-incident quality controls so responders can make faster, safer decisions under pressure while preserving evidence integrity.
+
+
+Closure Confidence Addendum
+- Confirm customer-facing KPIs are stable across consecutive windows.
+- Confirm dependency metrics returned to expected variance range.
+- Confirm no hidden operational backlog remains unowned.
+- Confirm response artifacts are complete for audit and future replay.
+- Confirm preventive actions are scheduled with accountable owners.
+

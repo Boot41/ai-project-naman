@@ -1,0 +1,57 @@
+{
+  "category": "runbooks",
+  "documents": [
+    {
+      "id": "api_gateway_runbook",
+      "category": "runbooks",
+      "file": "resources/runbooks/api-gateway-runbook.md",
+      "tags": [
+        "gateway",
+        "routing",
+        "latency",
+        "timeouts",
+        "traffic-control"
+      ],
+      "service": "api-gateway"
+    },
+    {
+      "id": "auth_service_runbook",
+      "category": "runbooks",
+      "file": "resources/runbooks/auth-service-runbook.md",
+      "tags": [
+        "authentication",
+        "jwt",
+        "token-validation",
+        "identity",
+        "access-control"
+      ],
+      "service": "api-gateway"
+    },
+    {
+      "id": "payment_service_runbook",
+      "category": "runbooks",
+      "file": "resources/runbooks/payment-service-runbook.md",
+      "tags": [
+        "payments",
+        "authorization",
+        "capture",
+        "idempotency",
+        "latency"
+      ],
+      "service": "api-gateway"
+    },
+    {
+      "id": "search_service_runbook",
+      "category": "runbooks",
+      "file": "resources/runbooks/search-service-runbook.md",
+      "tags": [
+        "search",
+        "indexing",
+        "query-latency",
+        "freshness",
+        "shards"
+      ],
+      "service": "api-gateway"
+    }
+  ]
+}

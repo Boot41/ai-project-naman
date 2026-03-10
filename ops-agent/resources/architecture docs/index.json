@@ -1,0 +1,31 @@
+{
+  "category": "architecture",
+  "documents": [
+    {
+      "id": "service_dependencies",
+      "category": "architecture",
+      "file": "resources/architecture docs/service-dependencies.md",
+      "tags": [
+        "architecture",
+        "dependencies",
+        "service-relationships",
+        "blast-radius",
+        "failure-propagation"
+      ],
+      "service": "api-gateway"
+    },
+    {
+      "id": "system_overview",
+      "category": "architecture",
+      "file": "resources/architecture docs/system-overview.md",
+      "tags": [
+        "architecture",
+        "microservices",
+        "request-flow",
+        "observability",
+        "investigation"
+      ],
+      "service": "api-gateway"
+    }
+  ]
+}

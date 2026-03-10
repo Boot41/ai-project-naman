@@ -1,0 +1,203 @@
+Service Description
+search-service provides full-text and faceted search across product catalog and order history indexes. It receives queries from api-gateway, enriches requests with user permissions from auth-service and user-service context, and executes against a distributed search cluster. The service supports autocomplete, relevance-ranked results, and filtered navigation used by customer and operations interfaces. It maintains ingestion pipelines from inventory-service and order-service events to keep indexes fresh. search-service is business-critical because search failures reduce conversion and increase support load, but partial degradation can be tolerated briefly with fallback behavior. SLO targets are p95 query latency below 280 ms, search success rate above 99.5 percent, and index freshness lag below 120 seconds for high-priority catalogs.
+
+Common Failure Modes
+1. Search cluster shard imbalance. Uneven shard placement or hot partitioning causes high tail latency and partial timeouts.
+2. Index ingestion backlog. Event consumer lag from inventory/order updates leads to stale or missing results.
+3. Query explosion from malformed client requests. Unbounded wildcard or deep pagination triggers CPU spikes.
+4. Cache invalidation bug. Stale query cache returns outdated inventory states or recently removed items.
+5. Mapping/schema mismatch after index template change. New documents fail indexing due to field type conflicts.
+6. Node-level memory pressure and garbage collection pauses on search workers.
+7. Dependency timeout for auth or user context enrichment causing query rejection before search execution.
+8. DNS/network partition between search-service API pods and underlying search cluster nodes.
+
+Important Metrics
+- Query throughput by endpoint (`search_rps`, `autocomplete_rps`).
+- Query latency percentiles and timeout rate.
+- Success/error rate by query type and HTTP status.
+- Search cluster health (`cluster_status`, shard allocation, unassigned shard count).
+- Node resource metrics (CPU, heap usage, GC pause time, disk I/O).
+- Cache metrics (hit ratio, eviction count, stale response count).
+- Indexing pipeline metrics (ingest events/sec, lag seconds, failed indexing count).
+- Freshness indicators (`index_freshness_seconds` by dataset).
+- Slow query logs: top N expensive queries and cardinality-heavy filters.
+- Upstream dependency metrics for auth/user enrichment latency.
+
+Investigation Steps
+1. Clarify incident shape: complete outage, high latency, stale results, or partial query failures.
+2. Check search-service golden signals and identify first anomaly timestamp.
+3. Compare API-layer errors to cluster-layer health. A healthy API with red cluster usually indicates backend index/search node problem.
+4. Inspect query latency distribution by endpoint and tenant segment. Tail-only degradation often points to shard hotspots.
+5. Review unassigned shard count and recent cluster rebalance events. Sudden relocation can degrade performance.
+6. Check ingest lag for inventory and order event streams. If freshness lag is high, verify consumer health and queue backlog.
+7. Pull slow query samples and identify abuse patterns (wildcards, very broad filters, deep pagination).
+8. Validate recent deploys: query parser changes, relevance model updates, index template/mapping modifications.
+9. Confirm dependency behavior for auth/user enrichment calls. Upstream latency can appear as search latency.
+10. Test known deterministic queries against both API endpoint and direct cluster query to separate service-layer and cluster-layer issues.
+11. Check node-level memory and GC pressure; long GC pauses often align with timeout spikes.
+12. Validate DNS resolution and network path between service pods and cluster endpoints.
+13. Build a concise evidence timeline and choose containment path (traffic shaping, query guardrails, cluster recovery).
+
+Recovery Steps
+1. If shard imbalance is primary, trigger controlled rebalance and temporarily reduce replica movement concurrency.
+2. If cluster health is red/yellow due to node loss, restore failed node or promote replicas and reroute traffic.
+3. If ingest backlog is high, scale consumers and prioritize critical index topics before non-critical analytics feeds.
+4. If query explosion occurs, enable emergency query guardrails: wildcard restrictions, pagination caps, and per-client rate limits.
+5. If mapping mismatch caused indexing failures, revert template or deploy compatible mapping migration; reindex failed documents.
+6. If GC/memory pressure persists, reduce query concurrency and scale out search nodes with tuned heap settings.
+7. If dependency enrichment path fails, enable degraded mode where non-critical personalization is skipped but core results remain available.
+8. If cache serves stale data, flush selective keys and re-enable invalidation hooks.
+9. Roll back recent query-parser or relevance deployment if correlated with incident onset.
+10. Validate recovery through synthetic search probes, freshness lag reduction, and p95/p99 latency normalization over 30 minutes.
+
+Escalation Contacts
+- Primary On-Call: Search Platform Engineer (`search-primary`).
+- Secondary On-Call: Data Retrieval Reliability Engineer (`search-secondary`).
+- Cluster Escalation: Search Infrastructure Specialist for shard allocation and node replacement.
+- Dependency Escalations:
+  - inventory-service event lag: Inventory Platform On-Call.
+  - order-service event lag: Commerce Data On-Call.
+  - auth enrichment failures: Identity On-Call.
+- Incident Commander: Required for SEV1 and for SEV2 incidents affecting core search for more than 20 minutes.
+- Escalation Triggers:
+  - Search success rate below 92 percent for 10 minutes.
+  - p99 query latency above 2 seconds for critical customer search routes.
+  - Cluster status red with unassigned primary shards.
+  - Index freshness lag above 15 minutes for top-selling catalog partitions.
+- Vendor Escalation:
+  - Managed search provider support ticket if cluster recovery actions fail or repeat node failure occurs within 24 hours.
+
+Additional Operational Data Pack
+
+Scenario Matrix For search-service
+1. Regional dependency degradation with stable local CPU: Trigger synthetic probes from two regions, compare upstream RTT variance, and mark incident as network-path sensitive if delta exceeds 35 percent.
+2. Configuration drift after deployment: Validate active runtime config checksum, compare with Git artifact checksum, and confirm no sidecar override injected stale values.
+3. Slow-burn saturation event: Watch queue depth slope across 30 minutes, not just absolute threshold, because early trend often predicts failure before SLO breach.
+4. Partial dependency outage: Identify affected API operations by endpoint and method, then switch to route-level degraded behavior only for impacted paths.
+
+Expanded Investigation Checklist
+- Confirm alert source quality: classify as customer-reported, synthetic, metric, or log anomaly.
+- Build a two-axis blast map: business workflow impact vs technical component impact.
+- Capture first bad request ID and first recovery request ID.
+- Validate retry policy at every caller layer to avoid multiplicative traffic growth.
+- Check timeout budget consistency between caller and callee.
+- Compare deployment timeline against error timeline with exact minute precision.
+- Validate secrets and certificates age, issuance timestamp, and rotation policy status.
+- Inspect network path health: DNS lookup latency, TCP handshake failures, TLS negotiation latency.
+- Evaluate storage pressure: IOPS saturation, replication lag, and write queue backlog.
+- Collect five representative failing samples and five successful samples for diff analysis.
+
+Operational Signals To Add To Dashboards
+- Error budget burn rate (5-minute and 1-hour windows).
+- Dependency latency variance, not just mean and percentile.
+- Retry amplification ratio (outbound requests / inbound requests).
+- Degraded-mode activation count and duration.
+- Configuration reload events and rollout wave status.
+- Queue recovery half-life after mitigation.
+- Saturation early warning score combining CPU throttling + queue growth + timeout drift.
+
+Recovery Playbooks (Detailed)
+1. Contain
+- Freeze non-essential deploys for impacted service and direct dependencies.
+- Activate lowest-risk degraded path that preserves core business transaction correctness.
+- Lower inbound concurrency if dependency is unstable to prevent cascading saturation.
+
+2. Stabilize
+- Scale only where bottleneck evidence exists; avoid blind scale-out that increases coordination cost.
+- Tune retries to fail-fast during active dependency outage.
+- Protect persistence tier by pausing low-priority background jobs.
+
+3. Verify
+- Confirm p95 and p99 returning toward baseline with three consecutive clean intervals.
+- Validate business KPI recovery (login success, checkout completion, search success) alongside infra metrics.
+- Confirm no hidden backlog remains in async pipelines.
+
+4. Exit
+- Remove temporary overrides in reverse order of introduction.
+- Keep heightened alert sensitivity for one hour post-recovery.
+- Publish short recovery bulletin with residual risk statement.
+
+Escalation Enhancement Rules
+- Auto-escalate if no measurable improvement within 15 minutes of first mitigation.
+- Escalate immediately if integrity or security controls are bypassed.
+- Add domain owner to bridge when incident crosses service boundary.
+- Require incident commander for multi-service degradation even if initial severity is moderate.
+
+Post-Incident Data Capture Template
+- Trigger condition and earliest confirmed symptom.
+- Primary and contributing causes.
+- What detection signal should have fired earlier.
+- What containment control worked fastest.
+- Which manual step should be automated.
+- Follow-up actions with owner, due date, and measurable success criteria.
+
+
+Supplemental Deep-Dive Operations Appendix
+
+Decision Tree For Active Incidents
+1. Is customer impact rising right now?
+- Yes: prioritize containment over diagnosis depth.
+- No: complete root-cause isolation before applying risky mitigations.
+2. Is impact isolated to one user journey?
+- Yes: isolate by endpoint and dependency chain.
+- No: inspect shared controls (gateway, auth, networking, runtime config).
+3. Is integrity risk present?
+- Yes: pause risky mutations, engage compliance/security/finance path immediately.
+- No: continue with staged degradation and traffic management.
+
+Advanced Evidence Collection Pack
+- Capture per-minute error-rate and latency percentile snapshots during the first 20 minutes.
+- Preserve representative request/trace IDs for each affected endpoint class.
+- Compare successful and failing payload classes to detect conditional failures.
+- Build dependency health matrix with states: healthy, degraded, unknown, failed.
+- Attach rollout metadata to timeline: artifact id, config hash, zone, and rollout wave.
+
+Containment Patterns Library
+- Pattern A: Route shaping
+  - reduce non-critical traffic,
+  - enforce hard concurrency caps,
+  - preserve critical business path.
+- Pattern B: Dependency isolation
+  - disable optional enrichment,
+  - short-circuit failing upstream calls,
+  - enable fallback response mode.
+- Pattern C: Retry suppression
+  - remove nested retries,
+  - enforce backoff with jitter,
+  - cap outstanding inflight calls.
+- Pattern D: Backlog protection
+  - pause low-priority consumers,
+  - prioritize customer-facing workflows,
+  - monitor queue drain half-life.
+
+Recovery Confidence Checklist
+- Recovery confidence should not rely on one metric.
+- Require concurrent improvement in:
+  - user-facing success metrics,
+  - service p95/p99 latency,
+  - dependency error rates,
+  - queue lag and backlog,
+  - saturation and throttling indicators.
+- Keep 30 to 60 minute observation window before declaring full closure.
+
+Operational Debt Log Template
+- What temporary override was applied?
+- Who owns rollback and by when?
+- What metric confirms rollback safety?
+- What automation would remove this manual step next time?
+- What test should be added so this failure pattern is caught earlier?
+
+Cross-Team Coordination Model
+- SRE: incident command, system stabilization, and rollback orchestration.
+- Domain team: service-specific mitigations and code/config ownership.
+- Security/compliance: integrity and policy exception decisions.
+- Data/analytics: impact quantification and recovery confirmation on reporting side.
+- Support/comms: external-facing updates and customer narrative alignment.
+
+Post-Recovery Hardening Tasks
+- Add detectors for precursor signals seen in this incident class.
+- Create safe-mode configuration presets with explicit exit criteria.
+- Simulate similar failure in staging with replayed traffic pattern.
+- Update runbooks and postmortem templates with new validated steps.
+- Audit dashboard coverage to ensure first-response visibility within one pane.
+

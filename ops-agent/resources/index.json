@@ -1,0 +1,118 @@
+{
+  "documents": [
+    {
+      "id": "api_gateway_runbook",
+      "category": "runbooks",
+      "file": "resources/runbooks/api-gateway-runbook.md",
+      "tags": [
+        "gateway",
+        "routing",
+        "latency",
+        "timeouts",
+        "traffic-control"
+      ],
+      "service": "api-gateway"
+    },
+    {
+      "id": "auth_service_runbook",
+      "category": "runbooks",
+      "file": "resources/runbooks/auth-service-runbook.md",
+      "tags": [
+        "authentication",
+        "jwt",
+        "token-validation",
+        "identity",
+        "access-control"
+      ],
+      "service": "auth-service"
+    },
+    {
+      "id": "payment_service_runbook",
+      "category": "runbooks",
+      "file": "resources/runbooks/payment-service-runbook.md",
+      "tags": [
+        "payments",
+        "authorization",
+        "capture",
+        "idempotency",
+        "latency"
+      ],
+      "service": "payment-service"
+    },
+    {
+      "id": "search_service_runbook",
+      "category": "runbooks",
+      "file": "resources/runbooks/search-service-runbook.md",
+      "tags": [
+        "search",
+        "indexing",
+        "query-latency",
+        "freshness",
+        "shards"
+      ],
+      "service": "search-service"
+    },
+    {
+      "id": "incident_payment_latency",
+      "category": "postmortems",
+      "file": "resources/postmortems/incident-payment-latency.md",
+      "tags": [
+        "incident",
+        "payments",
+        "latency",
+        "mitigation",
+        "timeline"
+      ],
+      "service": "payment-service"
+    },
+    {
+      "id": "incident_search_outage",
+      "category": "postmortems",
+      "file": "resources/postmortems/incident-search-outage.md",
+      "tags": [
+        "incident",
+        "search",
+        "outage",
+        "recovery",
+        "timeline"
+      ],
+      "service": "search-service"
+    },
+    {
+      "id": "incident_response_policy",
+      "category": "policies",
+      "file": "resources/policies/incident-response-policy.md",
+      "tags": [
+        "incident",
+        "severity",
+        "escalation",
+        "response-process",
+        "governance"
+      ]
+    },
+    {
+      "id": "service_dependencies",
+      "category": "architecture",
+      "file": "resources/architecture docs/service-dependencies.md",
+      "tags": [
+        "architecture",
+        "dependencies",
+        "service-relationships",
+        "blast-radius",
+        "failure-propagation"
+      ]
+    },
+    {
+      "id": "system_overview",
+      "category": "architecture",
+      "file": "resources/architecture docs/system-overview.md",
+      "tags": [
+        "architecture",
+        "microservices",
+        "request-flow",
+        "observability",
+        "investigation"
+      ]
+    }
+  ]
+}

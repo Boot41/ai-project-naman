@@ -1,0 +1,213 @@
+# Api Gateway Runbook
+
+## Service Description
+api-gateway is the public ingress for all client and partner traffic. It terminates TLS, validates JWT tokens through auth-service, applies rate limits, enforces request size limits, injects request IDs, and routes traffic to downstream services. In the current platform, most user-facing operations pass through api-gateway first, including authentication, checkout, order status, profile updates, and search queries. The service runs behind a cloud load balancer with multiple gateway pods distributed across availability zones. The gateway maintains a routing table sourced from service discovery, caches auth validation responses for a short interval, and emits access logs with latency, status code, route key, upstream target, and retry count. Because all traffic converges here, api-gateway is a high blast-radius component; partial degradation can look like random failures across unrelated products. The operational objective is to keep p99 latency below 350 ms, 5xx under 0.5 percent, and authentication pass-through errors below 0.2 percent.
+
+## Common Failure Modes
+1. Upstream timeout amplification. A single slow dependency, often payment-service or search-service, causes queueing inside gateway worker pools and raises end-to-end latency for unrelated routes.
+2. Route misconfiguration after deployment. Incorrect path matching, header rewrites, or service discovery tags send traffic to wrong upstream version, causing 404/502 spikes.
+3. JWT validation dependency pressure. auth-service latency or connection errors lead to elevated 401/503 responses for otherwise valid users.
+4. Rate limiter state-store failure. Redis or in-memory shard imbalance produces false positives, rejecting normal traffic with 429.
+5. TLS certificate rotation issues. Expired or mismatched certificate chain causes handshake failures and apparent outage from external clients.
+6. Connection pool exhaustion. Too many downstream keepalive sockets or slow close behavior leads to “no healthy upstream” and reset storms.
+7. Logging or tracing backpressure. Blocking log sinks can increase CPU and response latency under high write volume.
+
+## Important Metrics
+- Request volume by route (`requests_per_second`, split by method and path template).
+- Latency percentiles (`gateway_latency_p50/p95/p99`) and upstream latency contribution.
+- HTTP status distribution (`2xx`, `4xx`, `5xx`) with focus on `502`, `503`, `504`, and `429`.
+- Auth dependency health (`auth_validation_latency_p95`, `auth_validation_error_rate`).
+- Upstream timeout count and retry count by service.
+- Worker saturation (`active_workers`, queue depth, event loop lag).
+- Connection metrics (open sockets, pool utilization, connection reset rate).
+- Load balancer metrics (healthy targets, TLS handshake errors, accepted connections).
+- Resource metrics (CPU throttling, memory RSS, GC pauses if runtime managed).
+- Golden signals dashboard: traffic, errors, latency, saturation for gateway and top three upstreams.
+
+## Investigation Steps
+1. Confirm incident scope. Check alerts, customer reports, and synthetic probes. Separate global from route-specific impact.
+2. Inspect gateway golden signals for the last 60 minutes. Look for sharp step changes at deploy boundaries, autoscaling events, or dependency incidents.
+3. Break down errors by route key. If a small subset of routes dominates failures, pivot to associated upstream service runbook.
+4. Compare gateway latency to upstream latency. If gateway-only latency rises while upstream remains stable, investigate gateway worker saturation, logging sinks, and local resource pressure.
+5. Validate auth dependency. Query auth-service health endpoint and dashboard. If auth latency is elevated, sample failed requests and confirm whether 401 vs 503 is expected.
+6. Check load balancer target health and zone distribution. Uneven healthy target counts often indicate node-level networking or bad rollout to one zone.
+7. Review last three deployments: gateway config, route map, policy changes, certificate updates, and rate limit profiles. Correlate exact change timestamp with first error spike.
+8. Pull structured logs for request IDs from failing routes. Verify upstream target, retry policy, timeout policy, and final response code.
+9. Run controlled canary probes from internal network to bypass edge CDN. This helps isolate external TLS/WAF issues from internal routing issues.
+10. Validate service discovery state. Ensure endpoints and tags match expected version. Look for stale cache or split-brain registration.
+11. Confirm rate-limiter store health. Check Redis latency and hit/miss anomalies; false 429 patterns usually cluster by client segment.
+12. Inspect node-level telemetry on overloaded pods: CPU throttling, file descriptor usage, conntrack pressure, and kernel retransmits.
+13. Build evidence timeline in incident channel. Include first symptom time, affected routes, likely dependency chain, and current mitigations.
+
+## Recovery Steps
+1. If route misconfiguration is confirmed, rollback gateway config to last known good version immediately.
+2. If a single upstream is failing, apply temporary route-level circuit breaking and return graceful degradation responses for non-critical endpoints.
+3. Increase gateway worker replica count if saturation is confirmed and downstream capacity exists.
+4. Reduce retry aggressiveness during dependency outages to prevent retry storms; prefer fail-fast with bounded backoff.
+5. If auth-service is bottlenecked, enable short-lived JWT validation cache extension (within policy bounds) and coordinate auth-service scale-out.
+6. If certificate issue is detected, deploy validated certificate bundle and trigger load balancer listener reload.
+7. If rate-limiter false positives occur, switch to conservative fallback profile (higher threshold, anomaly logging enabled) until state-store is healthy.
+8. Drain and replace unhealthy nodes/pods showing connection resets or kernel networking anomalies.
+9. After stabilization, gradually restore stricter policies (retry/rate limits/cache TTL) and monitor p95/p99 and error rate for 30 minutes.
+10. Record all temporary overrides with expiration timestamps and ownership for cleanup.
+
+## Escalation Contacts
+- Primary On-Call: Edge Platform SRE (PagerDuty service `edge-sre-primary`).
+- Secondary On-Call: Traffic Engineering (`edge-sre-secondary`).
+- Dependency Escalations:
+  - auth-service issues: Identity Platform On-Call.
+  - payment-service route failures: Payments On-Call.
+  - search-service route failures: Search Infra On-Call.
+- Incident Commander: Assigned by SRE manager for SEV1/SEV2 events.
+- Communications Lead: Operations Duty Manager for stakeholder updates.
+- Escalation Triggers:
+  - SEV1 declaration criteria met (global 5xx > 10 percent for 10 minutes).
+  - p99 latency above 1.5 seconds for critical routes for 15 minutes.
+  - Any auth outage affecting login or token validation globally.
+  - No clear containment path within 20 minutes of investigation start.
+- External Vendor Escalation:
+  - Cloud Load Balancer support ticket if target health and TLS failures persist across multiple zones despite internal rollback.
+
+## Additional Operational Data Pack
+
+## Scenario Matrix For api-gateway
+1. Regional dependency degradation with stable local CPU: Trigger synthetic probes from two regions, compare upstream RTT variance, and mark incident as network-path sensitive if delta exceeds 35 percent.
+2. Configuration drift after deployment: Validate active runtime config checksum, compare with Git artifact checksum, and confirm no sidecar override injected stale values.
+3. Slow-burn saturation event: Watch queue depth slope across 30 minutes, not just absolute threshold, because early trend often predicts failure before SLO breach.
+4. Partial dependency outage: Identify affected API operations by endpoint and method, then switch to route-level degraded behavior only for impacted paths.
+
+## Expanded Investigation Checklist
+- Confirm alert source quality: classify as customer-reported, synthetic, metric, or log anomaly.
+- Build a two-axis blast map: business workflow impact vs technical component impact.
+- Capture first bad request ID and first recovery request ID.
+- Validate retry policy at every caller layer to avoid multiplicative traffic growth.
+- Check timeout budget consistency between caller and callee.
+- Compare deployment timeline against error timeline with exact minute precision.
+- Validate secrets and certificates age, issuance timestamp, and rotation policy status.
+- Inspect network path health: DNS lookup latency, TCP handshake failures, TLS negotiation latency.
+- Evaluate storage pressure: IOPS saturation, replication lag, and write queue backlog.
+- Collect five representative failing samples and five successful samples for diff analysis.
+
+## Operational Signals To Add To Dashboards
+- Error budget burn rate (5-minute and 1-hour windows).
+- Dependency latency variance, not just mean and percentile.
+- Retry amplification ratio (outbound requests / inbound requests).
+- Degraded-mode activation count and duration.
+- Configuration reload events and rollout wave status.
+- Queue recovery half-life after mitigation.
+- Saturation early warning score combining CPU throttling + queue growth + timeout drift.
+
+## Recovery Playbooks (Detailed)
+1. Contain
+- Freeze non-essential deploys for impacted service and direct dependencies.
+- Activate lowest-risk degraded path that preserves core business transaction correctness.
+- Lower inbound concurrency if dependency is unstable to prevent cascading saturation.
+
+2. Stabilize
+- Scale only where bottleneck evidence exists; avoid blind scale-out that increases coordination cost.
+- Tune retries to fail-fast during active dependency outage.
+- Protect persistence tier by pausing low-priority background jobs.
+
+3. Verify
+- Confirm p95 and p99 returning toward baseline with three consecutive clean intervals.
+- Validate business KPI recovery (login success, checkout completion, search success) alongside infra metrics.
+- Confirm no hidden backlog remains in async pipelines.
+
+4. Exit
+- Remove temporary overrides in reverse order of introduction.
+- Keep heightened alert sensitivity for one hour post-recovery.
+- Publish short recovery bulletin with residual risk statement.
+
+## Escalation Enhancement Rules
+- Auto-escalate if no measurable improvement within 15 minutes of first mitigation.
+- Escalate immediately if integrity or security controls are bypassed.
+- Add domain owner to bridge when incident crosses service boundary.
+- Require incident commander for multi-service degradation even if initial severity is moderate.
+
+## Post-Incident Data Capture Template
+- Trigger condition and earliest confirmed symptom.
+- Primary and contributing causes.
+- What detection signal should have fired earlier.
+- What containment control worked fastest.
+- Which manual step should be automated.
+- Follow-up actions with owner, due date, and measurable success criteria.
+
+
+## Supplemental Deep-Dive Operations Appendix
+
+## Decision Tree For Active Incidents
+1. Is customer impact rising right now?
+- Yes: prioritize containment over diagnosis depth.
+- No: complete root-cause isolation before applying risky mitigations.
+2. Is impact isolated to one user journey?
+- Yes: isolate by endpoint and dependency chain.
+- No: inspect shared controls (gateway, auth, networking, runtime config).
+3. Is integrity risk present?
+- Yes: pause risky mutations, engage compliance/security/finance path immediately.
+- No: continue with staged degradation and traffic management.
+
+## Advanced Evidence Collection Pack
+- Capture per-minute error-rate and latency percentile snapshots during the first 20 minutes.
+- Preserve representative request/trace IDs for each affected endpoint class.
+- Compare successful and failing payload classes to detect conditional failures.
+- Build dependency health matrix with states: healthy, degraded, unknown, failed.
+- Attach rollout metadata to timeline: artifact id, config hash, zone, and rollout wave.
+
+## Containment Patterns Library
+- Pattern A: Route shaping
+  - reduce non-critical traffic,
+  - enforce hard concurrency caps,
+  - preserve critical business path.
+- Pattern B: Dependency isolation
+  - disable optional enrichment,
+  - short-circuit failing upstream calls,
+  - enable fallback response mode.
+- Pattern C: Retry suppression
+  - remove nested retries,
+  - enforce backoff with jitter,
+  - cap outstanding inflight calls.
+- Pattern D: Backlog protection
+  - pause low-priority consumers,
+  - prioritize customer-facing workflows,
+  - monitor queue drain half-life.
+
+## Recovery Confidence Checklist
+- Recovery confidence should not rely on one metric.
+- Require concurrent improvement in:
+  - user-facing success metrics,
+  - service p95/p99 latency,
+  - dependency error rates,
+  - queue lag and backlog,
+  - saturation and throttling indicators.
+- Keep 30 to 60 minute observation window before declaring full closure.
+
+## Operational Debt Log Template
+- What temporary override was applied?
+- Who owns rollback and by when?
+- What metric confirms rollback safety?
+- What automation would remove this manual step next time?
+- What test should be added so this failure pattern is caught earlier?
+
+## Cross-Team Coordination Model
+- SRE: incident command, system stabilization, and rollback orchestration.
+- Domain team: service-specific mitigations and code/config ownership.
+- Security/compliance: integrity and policy exception decisions.
+- Data/analytics: impact quantification and recovery confirmation on reporting side.
+- Support/comms: external-facing updates and customer narrative alignment.
+
+## Post-Recovery Hardening Tasks
+- Add detectors for precursor signals seen in this incident class.
+- Create safe-mode configuration presets with explicit exit criteria.
+- Simulate similar failure in staging with replayed traffic pattern.
+- Update runbooks and postmortem templates with new validated steps.
+- Audit dashboard coverage to ensure first-response visibility within one pane.
+
+
+## Targeted Expansion Addendum
+- Add explicit rollback trigger thresholds tied to business KPIs.
+- Capture a before/after metric snapshot for every mitigation step.
+- Maintain a bounded decision log to avoid conflicting concurrent actions.
+- Include a dependency verification pass before declaring resolution.
+- Require ownership and due date for every temporary override cleanup item.
+- Add replayable query/command snippets in future revisions for faster triage.
+- Improve handoff packet quality for long incidents with clear unresolved risks.

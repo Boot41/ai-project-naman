@@ -1,0 +1,31 @@
+{
+  "category": "postmortems",
+  "documents": [
+    {
+      "id": "incident_payment_latency",
+      "category": "postmortems",
+      "file": "resources/postmortems/incident-payment-latency.md",
+      "tags": [
+        "incident",
+        "payments",
+        "latency",
+        "mitigation",
+        "timeline"
+      ],
+      "service": "api-gateway"
+    },
+    {
+      "id": "incident_search_outage",
+      "category": "postmortems",
+      "file": "resources/postmortems/incident-search-outage.md",
+      "tags": [
+        "incident",
+        "search",
+        "outage",
+        "recovery",
+        "timeline"
+      ],
+      "service": "api-gateway"
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "category": "policies",
+  "documents": [
+    {
+      "id": "incident_response_policy",
+      "category": "policies",
+      "file": "resources/policies/incident-response-policy.md",
+      "tags": [
+        "incident",
+        "severity",
+        "escalation",
+        "response-process",
+        "governance"
+      ],
+      "service": "api-gateway"
+    }
+  ]
+}
