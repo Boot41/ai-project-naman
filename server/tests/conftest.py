@@ -7,8 +7,19 @@ import jwt
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+from app.core import config as config_module
 from app.core.config import get_settings
 from app.main import app
+
+TEST_SECRET_KEY = "test-only-secret-key-at-least-32-bytes-long"
+
+
+@pytest.fixture(autouse=True)
+def fixed_test_secret(monkeypatch: pytest.MonkeyPatch):  # type: ignore[no-untyped-def]
+    monkeypatch.setenv("SECRET_KEY", TEST_SECRET_KEY)
+    config_module.get_settings.cache_clear()
+    yield
+    config_module.get_settings.cache_clear()
 
 
 @pytest.fixture

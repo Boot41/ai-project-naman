@@ -17,11 +17,14 @@ from sqlalchemy.pool import StaticPool
 import app.db.models  # noqa: F401 — register all models
 from app.api.router import root_router
 from app.auth.passwords import hash_password
+from app.core import config as config_module
 from app.core.config import get_settings
 from app.db.base import Base
 from app.db.models import User
 from app.middleware.error_handler import ErrorHandlerMiddleware
 from app.middleware.request_logging import RequestLoggingMiddleware
+
+TEST_SECRET_KEY = "test-only-secret-key-at-least-32-bytes-long"
 
 
 def _create_test_app() -> FastAPI:
@@ -31,6 +34,14 @@ def _create_test_app() -> FastAPI:
     test_app.add_middleware(ErrorHandlerMiddleware)
     test_app.include_router(root_router)
     return test_app
+
+
+@pytest.fixture(autouse=True)
+def fixed_test_secret(monkeypatch: pytest.MonkeyPatch):  # type: ignore[no-untyped-def]
+    monkeypatch.setenv("SECRET_KEY", TEST_SECRET_KEY)
+    config_module.get_settings.cache_clear()
+    yield
+    config_module.get_settings.cache_clear()
 
 
 @pytest.fixture
