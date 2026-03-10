@@ -5,9 +5,9 @@ import os
 from pathlib import Path
 from typing import Any
 
-import psycopg2
+import psycopg2  # type: ignore[import-untyped]
 from psycopg2 import sql
-from psycopg2.extras import Json
+from psycopg2.extras import Json  # type: ignore[import-untyped]
 
 BASE_DIR = Path(__file__).resolve().parent
 SEED_DIR = BASE_DIR / "seed_data"
@@ -119,7 +119,7 @@ def insert_record(
         )
 
     cursor.execute(query, values)
-    return cursor.rowcount
+    return int(cursor.rowcount)
 
 
 def seed_table(
