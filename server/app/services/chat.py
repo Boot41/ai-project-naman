@@ -1,19 +1,18 @@
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import get_settings
 from app.db.models import Message, Session
+from app.services.agent_client import AgentClientError, query_ops_agent
 
 DEFAULT_SESSION_TITLE = "New Investigation"
 ASSISTANT_FALLBACK_REPLY = (
-    "I have logged your message and started the investigation context. "
-    "Please continue with incident details."
+    "I could not reach the agent service to complete web search right now. "
+    "Please try again in a moment."
 )
 
 
@@ -154,7 +153,6 @@ async def create_chat_turn(
     user_id: int,
     content_text: str,
     structured_json: dict[str, object] | None,
-    assistant_runner: Callable[[str, str], Awaitable[str]],
 ) -> tuple[Message | None, Message | None]:
     session = await get_session_for_user(db, session_id=session_id, user_id=user_id)
     if session is None:
@@ -164,14 +162,10 @@ async def create_chat_turn(
         db, session=session, content_text=content_text, structured_json=structured_json
     )
 
-    settings = get_settings()
-    if not settings.google_api_key:
+    try:
+        reply_text = await query_ops_agent(query=content_text, user_id=str(user_id))
+    except AgentClientError:
         reply_text = ASSISTANT_FALLBACK_REPLY
-    else:
-        try:
-            reply_text = await assistant_runner(content_text, str(user_id))
-        except Exception:
-            reply_text = ASSISTANT_FALLBACK_REPLY
 
     assistant_structured = build_assistant_structured_payload(reply_text)
     assistant_message = await add_assistant_message(

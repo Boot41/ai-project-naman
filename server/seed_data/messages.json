@@ -1,0 +1,126 @@
+[
+  {
+    "id": "9a826872-933f-42f2-b9f7-72d44f709101",
+    "session_id": "f2c64adc-9d8f-46de-a406-2f1b88fe6d01",
+    "role": "user",
+    "content_text": "Checkout is failing. Can you identify probable cause?",
+    "structured_json": null
+  },
+  {
+    "id": "9a826872-933f-42f2-b9f7-72d44f709102",
+    "session_id": "f2c64adc-9d8f-46de-a406-2f1b88fe6d01",
+    "role": "assistant",
+    "content_text": "Likely payment timeout misconfiguration. Evidence shows timeout rate spike and retry storms.",
+    "structured_json": {
+      "summary": "Payment timeout regression likely root issue.",
+      "hypotheses": [
+        "HTTP client timeout too low",
+        "Retry policy amplified load"
+      ],
+      "recommended_actions": [
+        "Rollback payment-service deployment",
+        "Increase timeout and cap retries"
+      ]
+    }
+  },
+  {
+    "id": "9a826872-933f-42f2-b9f7-72d44f709201",
+    "session_id": "f2c64adc-9d8f-46de-a406-2f1b88fe6d02",
+    "role": "user",
+    "content_text": "Search P95 crossed 2 seconds, what changed?",
+    "structured_json": null
+  },
+  {
+    "id": "9a826872-933f-42f2-b9f7-72d44f709202",
+    "session_id": "f2c64adc-9d8f-46de-a406-2f1b88fe6d02",
+    "role": "assistant",
+    "content_text": "Index refresh and high catalog write throughput likely caused search latency regression.",
+    "structured_json": {
+      "summary": "Search latency linked to index pressure.",
+      "evidence": [
+        "search_p95_latency metric breach"
+      ]
+    }
+  },
+  {
+    "id": "9a826872-933f-42f2-b9f7-72d44f709301",
+    "session_id": "f2c64adc-9d8f-46de-a406-2f1b88fe6d03",
+    "role": "user",
+    "content_text": "Notification queue is growing. Is provider rate-limiting us?",
+    "structured_json": null
+  },
+  {
+    "id": "9a826872-933f-42f2-b9f7-72d44f709302",
+    "session_id": "f2c64adc-9d8f-46de-a406-2f1b88fe6d03",
+    "role": "assistant",
+    "content_text": "Backlog aligns with SMTP throughput limits and traffic burst. Start draining with backoff-aware workers.",
+    "structured_json": {
+      "summary": "Queue backlog likely due to throughput saturation.",
+      "owners": [
+        "notifications-oncall"
+      ]
+    }
+  },
+  {
+    "id": "9a826872-933f-42f2-b9f7-72d44f709103",
+    "session_id": "f2c64adc-9d8f-46de-a406-2f1b88fe6d01",
+    "role": "user",
+    "content_text": "Can you propose a rollback and validation checklist?",
+    "structured_json": null
+  },
+  {
+    "id": "9a826872-933f-42f2-b9f7-72d44f709104",
+    "session_id": "f2c64adc-9d8f-46de-a406-2f1b88fe6d01",
+    "role": "assistant",
+    "content_text": "Rollback payment-service, clear retry backlog, and validate checkout success, timeout rate, and order completion.",
+    "structured_json": {
+      "summary": "Rollback + validation checklist generated.",
+      "recommended_actions": [
+        "Rollback payment-service deployment",
+        "Drain queued retries safely",
+        "Validate checkout success rate and timeout metrics"
+      ]
+    }
+  },
+  {
+    "id": "9a826872-933f-42f2-b9f7-72d44f709203",
+    "session_id": "f2c64adc-9d8f-46de-a406-2f1b88fe6d02",
+    "role": "user",
+    "content_text": "Which service owner should we escalate to first?",
+    "structured_json": null
+  },
+  {
+    "id": "9a826872-933f-42f2-b9f7-72d44f709204",
+    "session_id": "f2c64adc-9d8f-46de-a406-2f1b88fe6d02",
+    "role": "assistant",
+    "content_text": "Escalate to Search On-Call first, then Catalog owner if index pressure persists.",
+    "structured_json": {
+      "summary": "Escalation order identified.",
+      "escalation": [
+        "Search On-Call",
+        "Catalog service owner"
+      ]
+    }
+  },
+  {
+    "id": "9a826872-933f-42f2-b9f7-72d44f709303",
+    "session_id": "f2c64adc-9d8f-46de-a406-2f1b88fe6d03",
+    "role": "user",
+    "content_text": "Give me immediate actions for the next 15 minutes.",
+    "structured_json": null
+  },
+  {
+    "id": "9a826872-933f-42f2-b9f7-72d44f709304",
+    "session_id": "f2c64adc-9d8f-46de-a406-2f1b88fe6d03",
+    "role": "assistant",
+    "content_text": "Pause non-critical producers, raise worker count, and monitor queue drain plus provider responses every 2 minutes.",
+    "structured_json": {
+      "summary": "15-minute mitigation plan provided.",
+      "recommended_actions": [
+        "Apply producer rate limit",
+        "Increase worker concurrency",
+        "Monitor queue depth and SMTP failures"
+      ]
+    }
+  }
+]

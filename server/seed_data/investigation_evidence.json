@@ -1,0 +1,46 @@
+[
+  {
+    "id": 1,
+    "session_id": "f2c64adc-9d8f-46de-a406-2f1b88fe6d01",
+    "message_id": "9a826872-933f-42f2-b9f7-72d44f709102",
+    "evidence_type": "metric",
+    "evidence_ref": "payment_gateway_timeout_rate",
+    "evidence_source_table": "incident_evidence",
+    "evidence_row_id": "1",
+    "excerpt": "Timeout rate increased sharply after deployment.",
+    "confidence_score": 0.943
+  },
+  {
+    "id": 2,
+    "session_id": "f2c64adc-9d8f-46de-a406-2f1b88fe6d01",
+    "message_id": "9a826872-933f-42f2-b9f7-72d44f709102",
+    "evidence_type": "log",
+    "evidence_ref": "order_retry_exhausted",
+    "evidence_source_table": "incident_evidence",
+    "evidence_row_id": "2",
+    "excerpt": "Order submit retries exceeded threshold.",
+    "confidence_score": 0.881
+  },
+  {
+    "id": 3,
+    "session_id": "f2c64adc-9d8f-46de-a406-2f1b88fe6d02",
+    "message_id": "9a826872-933f-42f2-b9f7-72d44f709202",
+    "evidence_type": "metric",
+    "evidence_ref": "search_p95_latency",
+    "evidence_source_table": "incident_evidence",
+    "evidence_row_id": "3",
+    "excerpt": "Search latency crossed SLO.",
+    "confidence_score": 0.857
+  },
+  {
+    "id": 4,
+    "session_id": "f2c64adc-9d8f-46de-a406-2f1b88fe6d03",
+    "message_id": "9a826872-933f-42f2-b9f7-72d44f709302",
+    "evidence_type": "queue",
+    "evidence_ref": "notification_queue_depth",
+    "evidence_source_table": "incident_evidence",
+    "evidence_row_id": "4",
+    "excerpt": "Queue backlog accumulated after traffic burst.",
+    "confidence_score": 0.902
+  }
+]

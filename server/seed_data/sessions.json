@@ -1,0 +1,29 @@
+[
+  {
+    "id": "f2c64adc-9d8f-46de-a406-2f1b88fe6d01",
+    "user_id": 1,
+    "incident_id": 1,
+    "session_type": "chat",
+    "title": "INC-2026-0001 Checkout failure triage",
+    "status": "active",
+    "last_activity_at": "2026-03-05T10:02:00"
+  },
+  {
+    "id": "f2c64adc-9d8f-46de-a406-2f1b88fe6d02",
+    "user_id": 3,
+    "incident_id": 2,
+    "session_type": "chat",
+    "title": "INC-2026-0002 Search latency analysis",
+    "status": "active",
+    "last_activity_at": "2026-03-06T14:45:00"
+  },
+  {
+    "id": "f2c64adc-9d8f-46de-a406-2f1b88fe6d03",
+    "user_id": 5,
+    "incident_id": 3,
+    "session_type": "chat",
+    "title": "INC-2026-0003 Notification backlog",
+    "status": "active",
+    "last_activity_at": "2026-03-07T08:10:00"
+  }
+]

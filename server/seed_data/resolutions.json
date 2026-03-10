@@ -1,0 +1,41 @@
+[
+  {
+    "id": 1,
+    "incident_id": 1,
+    "resolution_summary": "Rolled back payment-service release and increased timeout budget.",
+    "root_cause": "A misconfigured HTTP client timeout in payment-service caused cascading retries.",
+    "actions_taken_json": {
+      "rollback": "payment-service v2026.03.05.1",
+      "hotfix": "timeout config set to 3.5s",
+      "verification": "checkout success rate restored to 99.2%"
+    },
+    "resolved_by_user_id": 2,
+    "resolved_at": "2026-03-05T10:05:00"
+  },
+  {
+    "id": 2,
+    "incident_id": 2,
+    "resolution_summary": "Reduced index refresh frequency and scaled search pods to stabilize latency.",
+    "root_cause": "Aggressive index refresh with concurrent high write throughput saturated search nodes.",
+    "actions_taken_json": {
+      "config_change": "index_refresh_interval from 1s to 10s",
+      "scaling": "search-service replicas 6 -> 10",
+      "verification": "P95 latency dropped to 650ms"
+    },
+    "resolved_by_user_id": 4,
+    "resolved_at": "2026-03-06T16:12:00"
+  },
+  {
+    "id": 3,
+    "incident_id": 3,
+    "resolution_summary": "Enabled queue backpressure and increased notification worker concurrency.",
+    "root_cause": "Provider-side SMTP throughput cap combined with unbounded producer burst.",
+    "actions_taken_json": {
+      "throttle": "producer rate limit enabled",
+      "workers": "notification workers 8 -> 20",
+      "verification": "queue depth normalized under 200 within 40 minutes"
+    },
+    "resolved_by_user_id": 5,
+    "resolved_at": "2026-03-07T09:25:00"
+  }
+]

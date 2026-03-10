@@ -1,0 +1,29 @@
+[
+  {
+    "id": 3,
+    "username": "user3",
+    "email": "user3@example.com",
+    "full_name": "User Three",
+    "role": "operations_engineer",
+    "password_hash": "$2b$12$ar0QPiblJgcRIR4ME9JMfOfIjuOpILHLxHSPj91y0GOVGyfYH1hNS",
+    "is_active": true
+  },
+  {
+    "id": 4,
+    "username": "user4",
+    "email": "user4@example.com",
+    "full_name": "User Four",
+    "role": "operations_engineer",
+    "password_hash": "$2b$12$dhP3Ygxc7UvJpOknNc7H6eMERXxXJRehpRA5wMW1Jnz64zQ5tanL2",
+    "is_active": true
+  },
+  {
+    "id": 5,
+    "username": "user5",
+    "email": "user5@example.com",
+    "full_name": "User Five",
+    "role": "operations_engineer",
+    "password_hash": "$2b$12$P8TdQxpN6Yfiogrr2s./IuAMGysgjtEG4H5jTznSObVoW6F5rGudO",
+    "is_active": true
+  }
+]

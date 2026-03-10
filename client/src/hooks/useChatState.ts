@@ -66,9 +66,18 @@ const mapMessage = (raw: MessageApi): ChatMessage => ({
   createdAt: raw.created_at,
 });
 
+const createLocalAssistantMessage = (sessionId: string, content: string): ChatMessage => ({
+  id: `local-assistant-${Date.now()}`,
+  sessionId,
+  role: "assistant",
+  content,
+  structuredJson: null,
+  createdAt: new Date().toISOString(),
+});
+
 export const useChatState = (): ChatState => {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messagesBySession, setMessagesBySession] = useState<Record<string, ChatMessage[]>>({});
   const [selectedSessionId, setSelectedSessionId] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [draft, setDraft] = useState<string>("");
@@ -85,8 +94,8 @@ export const useChatState = (): ChatState => {
   );
 
   const sessionMessages = useMemo(
-    () => messages.filter((message) => message.sessionId === selectedSessionId),
-    [messages, selectedSessionId],
+    () => (selectedSessionId ? messagesBySession[selectedSessionId] ?? [] : []),
+    [messagesBySession, selectedSessionId],
   );
 
   const selectSession = (sessionId: string) => {
@@ -95,7 +104,10 @@ export const useChatState = (): ChatState => {
 
   const fetchMessages = useCallback(async (sessionId: string) => {
     const response = await api.get<{ messages: MessageApi[] }>(`/api/v1/chat/sessions/${sessionId}/messages`);
-    setMessages(response.data.messages.map(mapMessage));
+    setMessagesBySession((prev) => ({
+      ...prev,
+      [sessionId]: response.data.messages.map(mapMessage),
+    }));
   }, []);
 
   const fetchSessions = useCallback(async () => {
@@ -115,7 +127,6 @@ export const useChatState = (): ChatState => {
 
   useEffect(() => {
     if (!selectedSessionId) {
-      setMessages([]);
       return;
     }
     void fetchMessages(selectedSessionId);
@@ -127,7 +138,7 @@ export const useChatState = (): ChatState => {
       const newSession = mapSession(response.data);
       setSessions((prev) => [newSession, ...prev]);
       setSelectedSessionId(newSession.id);
-      setMessages([]);
+      setMessagesBySession((prev) => ({ ...prev, [newSession.id]: [] }));
       setDraft("");
     })();
   };
@@ -139,31 +150,61 @@ export const useChatState = (): ChatState => {
       if (selectedSessionId === sessionId) {
         const nextId = remaining[0]?.id ?? "";
         setSelectedSessionId(nextId);
-        if (!nextId) setMessages([]);
       }
       return remaining;
+    });
+    setMessagesBySession((prev) => {
+      const next = { ...prev };
+      delete next[sessionId];
+      return next;
     });
   };
 
   const sendMessage = async (incoming?: string) => {
     const content = (incoming ?? draft).trim();
-    if (!content || !selectedSessionId || isSending) {
+    if (!content || isSending) {
       return;
     }
+    let targetSessionId = selectedSessionId;
     setIsSending(true);
     try {
+      if (!targetSessionId) {
+        const sessionResponse = await api.post<SessionApi>("/api/v1/chat/sessions", {});
+        const newSession = mapSession(sessionResponse.data);
+        setSessions((prev) => [newSession, ...prev]);
+        setSelectedSessionId(newSession.id);
+        setMessagesBySession((prev) => ({ ...prev, [newSession.id]: [] }));
+        targetSessionId = newSession.id;
+      }
+
       const response = await api.post<{
         user_message: MessageApi;
         assistant_message: MessageApi;
-      }>(`/api/v1/chat/sessions/${selectedSessionId}/messages`, {
+      }>(`/api/v1/chat/sessions/${targetSessionId}/messages`, {
         content_text: content,
       });
 
       const userMessage = mapMessage(response.data.user_message);
       const assistantMessage = mapMessage(response.data.assistant_message);
-      setMessages((prev) => [...prev, userMessage, assistantMessage]);
+      setMessagesBySession((prev) => ({
+        ...prev,
+        [targetSessionId]: [...(prev[targetSessionId] ?? []), userMessage, assistantMessage],
+      }));
       await fetchSessions();
       setDraft("");
+    } catch {
+      if (targetSessionId) {
+        setMessagesBySession((prev) => ({
+          ...prev,
+          [targetSessionId]: [
+            ...(prev[targetSessionId] ?? []),
+            createLocalAssistantMessage(
+              targetSessionId,
+              "I could not send your message to the backend right now. Please try again.",
+            ),
+          ],
+        }));
+      }
     } finally {
       setIsSending(false);
     }

@@ -1,0 +1,102 @@
+[
+  {
+    "id": 1,
+    "service_id": 1,
+    "depends_on_service_id": 2
+  },
+  {
+    "id": 2,
+    "service_id": 1,
+    "depends_on_service_id": 4
+  },
+  {
+    "id": 3,
+    "service_id": 1,
+    "depends_on_service_id": 8
+  },
+  {
+    "id": 4,
+    "service_id": 2,
+    "depends_on_service_id": 4
+  },
+  {
+    "id": 5,
+    "service_id": 3,
+    "depends_on_service_id": 2
+  },
+  {
+    "id": 6,
+    "service_id": 3,
+    "depends_on_service_id": 11
+  },
+  {
+    "id": 7,
+    "service_id": 5,
+    "depends_on_service_id": 3
+  },
+  {
+    "id": 8,
+    "service_id": 5,
+    "depends_on_service_id": 6
+  },
+  {
+    "id": 9,
+    "service_id": 5,
+    "depends_on_service_id": 14
+  },
+  {
+    "id": 10,
+    "service_id": 6,
+    "depends_on_service_id": 13
+  },
+  {
+    "id": 11,
+    "service_id": 7,
+    "depends_on_service_id": 2
+  },
+  {
+    "id": 12,
+    "service_id": 8,
+    "depends_on_service_id": 13
+  },
+  {
+    "id": 13,
+    "service_id": 9,
+    "depends_on_service_id": 5
+  },
+  {
+    "id": 14,
+    "service_id": 10,
+    "depends_on_service_id": 9
+  },
+  {
+    "id": 15,
+    "service_id": 11,
+    "depends_on_service_id": 2
+  },
+  {
+    "id": 16,
+    "service_id": 12,
+    "depends_on_service_id": 2
+  },
+  {
+    "id": 17,
+    "service_id": 12,
+    "depends_on_service_id": 5
+  },
+  {
+    "id": 18,
+    "service_id": 14,
+    "depends_on_service_id": 6
+  },
+  {
+    "id": 19,
+    "service_id": 15,
+    "depends_on_service_id": 8
+  },
+  {
+    "id": 20,
+    "service_id": 15,
+    "depends_on_service_id": 9
+  }
+]

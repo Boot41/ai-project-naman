@@ -1,0 +1,72 @@
+[
+  {
+    "id": 1,
+    "incident_id": 1,
+    "service_id": 3,
+    "event_type": "metric",
+    "event_time": "2026-03-05T09:18:00",
+    "metric_name": "payment_gateway_timeout_rate",
+    "metric_value": 42.55,
+    "event_text": "Timeout rate increased sharply after deployment.",
+    "unit": "percent",
+    "tags_json": {
+      "env": "prod",
+      "region": "us-east-1"
+    },
+    "metadata_json": {
+      "dashboard": "payments-overview",
+      "alert_id": "ALT-9912"
+    }
+  },
+  {
+    "id": 2,
+    "incident_id": 1,
+    "service_id": 5,
+    "event_type": "log",
+    "event_time": "2026-03-05T09:21:00",
+    "metric_name": null,
+    "metric_value": null,
+    "event_text": "Order submit retries exceeded threshold.",
+    "unit": null,
+    "tags_json": {
+      "component": "checkout"
+    },
+    "metadata_json": {
+      "trace_id": "8c2a1c5d"
+    }
+  },
+  {
+    "id": 3,
+    "incident_id": 2,
+    "service_id": 8,
+    "event_type": "metric",
+    "event_time": "2026-03-06T14:24:00",
+    "metric_name": "search_p95_latency",
+    "metric_value": 2.34,
+    "event_text": "Search latency crossed SLO.",
+    "unit": "seconds",
+    "tags_json": {
+      "env": "prod"
+    },
+    "metadata_json": {
+      "dashboard": "search-latency"
+    }
+  },
+  {
+    "id": 4,
+    "incident_id": 3,
+    "service_id": 7,
+    "event_type": "queue",
+    "event_time": "2026-03-07T07:44:00",
+    "metric_name": "notification_queue_depth",
+    "metric_value": 18420,
+    "event_text": "Queue backlog accumulated after traffic burst.",
+    "unit": "messages",
+    "tags_json": {
+      "provider": "smtp"
+    },
+    "metadata_json": {
+      "queue_name": "notifications-primary"
+    }
+  }
+]
