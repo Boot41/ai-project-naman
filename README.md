@@ -60,7 +60,7 @@ docker-compose up -d db
 cd server
 uv sync --all-extras
 uv run alembic upgrade head
-uv run uvicorn app.main:app --reload --port 8010
+uv run uvicorn app.main:app --reload --port 8000
 
 # Frontend (separate terminal)
 cd client
@@ -68,7 +68,7 @@ npm install
 npm run dev
 ```
 
-App runs at http://localhost:5173 with API proxied to :8010.
+App runs at http://localhost:5173 with API proxied to :8000.
 
 ## Quality Gates
 
@@ -102,7 +102,7 @@ npm run build   # TypeScript + Vite build
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `ENV` | `development` | development / test / production |
-| `DATABASE_URL` | `postgresql+asyncpg://postgres:postgres@localhost:5433/app_scaffold` | Database connection |
+| `DATABASE_URL` | `postgresql+asyncpg://postgres:postgres@localhost:5434/app_scaffold` | Database connection |
 | `SECRET_KEY` | `app-scaffold-dev-secret` | JWT signing secret |
 | `GOOGLE_API_KEY` | *(empty)* | Google AI Studio API key for ADK |
 | `GOOGLE_GENAI_USE_VERTEXAI` | `false` | Set `true` to use Vertex AI instead |
