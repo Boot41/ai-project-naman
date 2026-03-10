@@ -27,6 +27,7 @@ export function ChatPage() {
     setDraft,
     selectSession,
     createNewChat,
+    deleteSession,
     sendMessage,
   } = useChatState();
   const { logout } = useAuth();
@@ -58,6 +59,9 @@ export function ChatPage() {
       onSelectSession={(sessionId) => {
         selectSession(sessionId);
         setMobileOpen(false);
+      }}
+      onDeleteSession={(sessionId) => {
+        void deleteSession(sessionId);
       }}
       onNewChat={() => {
         createNewChat();
@@ -94,7 +98,7 @@ export function ChatPage() {
         </Stack>
 
         <ChatHeader
-          title={selectedSession?.title ?? "INC-992 (Payment Gateway Latency)"}
+          title={selectedSession?.title ?? "No Active Investigation"}
           onLogout={logout}
         />
 

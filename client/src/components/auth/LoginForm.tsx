@@ -146,7 +146,7 @@ export function LoginForm({ onSubmit }: LoginFormProps) {
         </Button>
 
         <Typography variant="caption" sx={{ color: "#7f98c3" }}>
-          Test account: `user1@example.com` / `123456`
+          Use your OpsCopilot account credentials.
         </Typography>
       </Stack>
     </Box>

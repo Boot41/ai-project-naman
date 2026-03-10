@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
     create_async_engine,
 )
+from sqlalchemy.pool import StaticPool
 
 import app.db.models  # noqa: F401 — register all models
 from app.api.router import root_router
@@ -34,8 +35,12 @@ def _create_test_app() -> FastAPI:
 
 @pytest.fixture
 async def engine():  # type: ignore[no-untyped-def]
-    settings = get_settings()
-    eng = create_async_engine(settings.effective_db_url, echo=False)
+    eng = create_async_engine(
+        "sqlite+aiosqlite:///:memory:",
+        echo=False,
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
     async with eng.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     yield eng
@@ -77,6 +82,7 @@ async def seed_user(db: AsyncSession) -> User:
         username="testuser",
         email="test@example.com",
         full_name="Test User",
+        role="operations_engineer",
         password_hash=hash_password("testpass"),
     )
     db.add(user)
@@ -87,9 +93,13 @@ async def seed_user(db: AsyncSession) -> User:
 
 def make_token(user_id: int) -> str:
     settings = get_settings()
+    now = datetime.now(UTC)
     payload = {
         "sub": str(user_id),
-        "exp": datetime.now(UTC) + timedelta(hours=1),
+        "type": "access",
+        "role": "operations_engineer",
+        "iat": int(now.timestamp()),
+        "exp": int((now + timedelta(hours=1)).timestamp()),
     }
     return jwt.encode(payload, settings.secret_key, algorithm="HS256")
 

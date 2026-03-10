@@ -17,6 +17,7 @@ interface SidebarProps {
   searchQuery: string;
   onSearchQueryChange: (value: string) => void;
   onSelectSession: (sessionId: string) => void;
+  onDeleteSession: (sessionId: string) => void;
   onNewChat: () => void;
 }
 
@@ -26,6 +27,7 @@ export function Sidebar({
   searchQuery,
   onSearchQueryChange,
   onSelectSession,
+  onDeleteSession,
   onNewChat,
 }: SidebarProps) {
   return (
@@ -100,6 +102,7 @@ export function Sidebar({
           groups={groups}
           activeSessionId={activeSessionId}
           onSelect={onSelectSession}
+          onDelete={onDeleteSession}
         />
       </Box>
     </Stack>

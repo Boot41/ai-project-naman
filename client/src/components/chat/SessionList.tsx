@@ -6,9 +6,10 @@ interface SessionListProps {
   groups: SessionGroup[];
   activeSessionId: string | null;
   onSelect: (sessionId: string) => void;
+  onDelete: (sessionId: string) => void;
 }
 
-export function SessionList({ groups, activeSessionId, onSelect }: SessionListProps) {
+export function SessionList({ groups, activeSessionId, onSelect, onDelete }: SessionListProps) {
   return (
     <Stack spacing={2}>
       {groups.map((group) => (
@@ -31,6 +32,7 @@ export function SessionList({ groups, activeSessionId, onSelect }: SessionListPr
                   session={session}
                   isActive={activeSessionId === session.id}
                   onClick={onSelect}
+                  onDelete={onDelete}
                 />
               ))
             )}

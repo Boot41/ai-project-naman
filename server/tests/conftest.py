@@ -15,9 +15,13 @@ from app.main import app
 def auth_token() -> str:
     """Generate a valid JWT token for user_id=1."""
     settings = get_settings()
+    now = datetime.now(UTC)
     payload = {
         "sub": "1",
-        "exp": datetime.now(UTC) + timedelta(hours=1),
+        "type": "access",
+        "role": "operations_engineer",
+        "iat": int(now.timestamp()),
+        "exp": int((now + timedelta(hours=1)).timestamp()),
     }
     return jwt.encode(payload, settings.secret_key, algorithm="HS256")
 

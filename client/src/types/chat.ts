@@ -1,9 +1,13 @@
-export type MessageRole = "user" | "assistant";
+export type MessageRole = "user" | "assistant" | "system";
 
 export interface ChatSession {
   id: string;
   title: string;
-  lastUpdated: string;
+  sessionType: "chat";
+  status: "active" | "closed";
+  lastActivityAt: string;
+  createdAt: string;
+  messageCount: number;
 }
 
 export interface ChatMessage {
@@ -11,6 +15,7 @@ export interface ChatMessage {
   sessionId: string;
   role: MessageRole;
   content: string;
+  structuredJson?: Record<string, unknown> | null;
   createdAt: string;
 }
 

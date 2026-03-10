@@ -8,11 +8,8 @@ import {
   useState,
   type PropsWithChildren,
 } from "react";
+import api, { clearStoredAuth, readStoredAuth, writeStoredAuth } from "@/lib/api";
 import type { AuthState } from "@/types/auth";
-
-const AUTH_KEY = "opscopilot.auth";
-const ALLOWED_EMAIL = "user1@example.com";
-const ALLOWED_PASSWORD = "123456";
 
 interface LoginPayload {
   email: string;
@@ -27,52 +24,70 @@ interface AuthContextValue extends AuthState {
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 const readAuthFromStorage = (): AuthState => {
-  try {
-    const raw = localStorage.getItem(AUTH_KEY);
-    if (!raw) {
-      return { isAuthenticated: false, userEmail: null };
-    }
-    const parsed = JSON.parse(raw) as AuthState;
-    if (parsed.isAuthenticated && parsed.userEmail) {
-      return parsed;
-    }
-  } catch {
-    // Fallback to signed-out state for malformed storage.
+  const stored = readStoredAuth();
+  if (!stored) {
+    return { isAuthenticated: false, userEmail: null, accessToken: null, refreshToken: null };
   }
-  return { isAuthenticated: false, userEmail: null };
+  return {
+    isAuthenticated: true,
+    userEmail: stored.user.email,
+    accessToken: stored.access_token,
+    refreshToken: stored.refresh_token,
+  };
 };
 
 export function AuthProvider({ children }: PropsWithChildren) {
   const [authState, setAuthState] = useState<AuthState>({
     isAuthenticated: false,
     userEmail: null,
+    accessToken: null,
+    refreshToken: null,
   });
 
   useEffect(() => {
     setAuthState(readAuthFromStorage());
   }, []);
 
-  const login = useCallback(async ({ email, password }: LoginPayload) => {
-    // TODO: Replace with real authentication API integration.
-    await new Promise((resolve) => setTimeout(resolve, 450));
-
-    if (email.toLowerCase() !== ALLOWED_EMAIL || password !== ALLOWED_PASSWORD) {
-      return { ok: false, message: "Invalid credentials. Use the provided test account." };
-    }
-
-    const nextState: AuthState = {
-      isAuthenticated: true,
-      userEmail: email.toLowerCase(),
+  useEffect(() => {
+    const onCleared = () => {
+      setAuthState({
+        isAuthenticated: false,
+        userEmail: null,
+        accessToken: null,
+        refreshToken: null,
+      });
     };
+    window.addEventListener("auth:cleared", onCleared);
+    return () => window.removeEventListener("auth:cleared", onCleared);
+  }, []);
 
-    localStorage.setItem(AUTH_KEY, JSON.stringify(nextState));
-    setAuthState(nextState);
-    return { ok: true };
+  const login = useCallback(async ({ email, password }: LoginPayload) => {
+    try {
+      const response = await api.post("/auth/login", {
+        username: email.toLowerCase(),
+        password,
+      });
+      writeStoredAuth(response.data);
+      const nextState: AuthState = {
+        isAuthenticated: true,
+        userEmail: response.data.user.email,
+        accessToken: response.data.access_token,
+        refreshToken: response.data.refresh_token,
+      };
+      setAuthState(nextState);
+      return { ok: true };
+    } catch {
+      return { ok: false, message: "Invalid credentials." };
+    }
   }, []);
 
   const logout = useCallback(() => {
-    localStorage.removeItem(AUTH_KEY);
-    setAuthState({ isAuthenticated: false, userEmail: null });
+    const stored = readStoredAuth();
+    if (stored?.refresh_token) {
+      void api.post("/auth/logout", { refresh_token: stored.refresh_token }).catch(() => undefined);
+    }
+    clearStoredAuth();
+    setAuthState({ isAuthenticated: false, userEmail: null, accessToken: null, refreshToken: null });
   }, []);
 
   const value = useMemo(
