@@ -1,23 +1,30 @@
-import { Route, Routes, Navigate } from "react-router-dom";
-import { Box, Typography } from "@mui/material";
+import { Navigate, Outlet, Route, Routes } from "react-router-dom";
+import { ChatPage } from "@/pages/ChatPage";
+import { LoginPage } from "@/pages/LoginPage";
+import { useAuth } from "@/hooks/useAuth";
 
-function HomePage() {
-  return (
-    <Box
-      display="flex"
-      justifyContent="center"
-      alignItems="center"
-      minHeight="100vh"
-    >
-      <Typography variant="h3">App Scaffold</Typography>
-    </Box>
-  );
+function ProtectedRoute() {
+  const { isAuthenticated } = useAuth();
+  return isAuthenticated ? <Outlet /> : <Navigate to="/login" replace />;
+}
+
+function PublicRoute() {
+  const { isAuthenticated } = useAuth();
+  return isAuthenticated ? <Navigate to="/app" replace /> : <Outlet />;
 }
 
 function App() {
   return (
     <Routes>
-      <Route path="/" element={<HomePage />} />
+      <Route element={<PublicRoute />}>
+        <Route path="/login" element={<LoginPage />} />
+      </Route>
+
+      <Route element={<ProtectedRoute />}>
+        <Route path="/app" element={<ChatPage />} />
+      </Route>
+
+      <Route path="/" element={<Navigate to="/app" replace />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
