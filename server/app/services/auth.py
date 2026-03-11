@@ -42,7 +42,7 @@ def _create_access_token(user: User) -> str:
         "exp": int((now + timedelta(seconds=ACCESS_TOKEN_TTL_SECONDS)).timestamp()),
         "jti": str(uuid4()),
     }
-    return jwt.encode(payload, settings.secret_key, algorithm=ALGORITHM)
+    return jwt.encode(payload, settings.jwt_secret, algorithm=ALGORITHM)
 
 
 def _new_refresh_token() -> str:

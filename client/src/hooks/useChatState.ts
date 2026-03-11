@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRef } from "react";
 import api from "@/lib/api";
 import type { ChatMessage, ChatSession, SessionGroup } from "@/types/chat";
 
@@ -82,6 +83,7 @@ export const useChatState = (): ChatState => {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [draft, setDraft] = useState<string>("");
   const [isSending, setIsSending] = useState<boolean>(false);
+  const sendInFlightRef = useRef<boolean>(false);
 
   const groupedSessions = useMemo(
     () => filterSessions(sessions, searchQuery),
@@ -162,9 +164,10 @@ export const useChatState = (): ChatState => {
 
   const sendMessage = async (incoming?: string) => {
     const content = (incoming ?? draft).trim();
-    if (!content || isSending) {
+    if (!content || isSending || sendInFlightRef.current) {
       return;
     }
+    sendInFlightRef.current = true;
     let targetSessionId = selectedSessionId;
     setIsSending(true);
     try {
@@ -207,6 +210,7 @@ export const useChatState = (): ChatState => {
       }
     } finally {
       setIsSending(false);
+      sendInFlightRef.current = false;
     }
   };
 

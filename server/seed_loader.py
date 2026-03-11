@@ -36,12 +36,47 @@ REPLACE_TABLES_ON_SEED: set[str] = {"incident_services"}
 
 
 def get_connection() -> psycopg2.extensions.connection:
+    database_url = os.getenv("DATABASE_URL")
+    if database_url:
+        sync_url = database_url.replace("postgresql+asyncpg://", "postgresql://", 1)
+        return psycopg2.connect(sync_url)
+
+    db_host = os.getenv("DB_HOST")
+    db_port = os.getenv("DB_PORT")
+    db_name = os.getenv("DB_NAME")
+    db_user = os.getenv("DB_USER")
+    db_password = os.getenv("DB_PASSWORD")
+
+    missing = [
+        key
+        for key, value in {
+            "DB_HOST": db_host,
+            "DB_PORT": db_port,
+            "DB_NAME": db_name,
+            "DB_USER": db_user,
+            "DB_PASSWORD": db_password,
+        }.items()
+        if not value
+    ]
+    if missing:
+        missing_str = ", ".join(missing)
+        raise RuntimeError(
+            f"Missing DB environment configuration. Set DATABASE_URL or all of: {missing_str}"
+        )
+
+    # Narrow Optional env values for static type checking after the runtime guard above.
+    assert db_host is not None
+    assert db_port is not None
+    assert db_name is not None
+    assert db_user is not None
+    assert db_password is not None
+
     return psycopg2.connect(
-        host=os.getenv("DB_HOST", "localhost"),
-        port=int(os.getenv("DB_PORT", "5434")),
-        dbname=os.getenv("DB_NAME", "app_scaffold"),
-        user=os.getenv("DB_USER", "postgres"),
-        password=os.getenv("DB_PASSWORD", "postgres"),
+        host=db_host,
+        port=int(db_port),
+        dbname=db_name,
+        user=db_user,
+        password=db_password,
     )
 
 
