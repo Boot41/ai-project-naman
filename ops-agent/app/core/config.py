@@ -14,7 +14,15 @@ class Settings(BaseSettings):
     app_name: str = "ops-agent"
     model_name: str = "gemini-2.5-flash"
     google_api_key: str = ""
-    web_search_timeout_seconds: float = 10.0
+
+    @property
+    def required_google_api_key(self) -> str:
+        key = self.google_api_key.strip()
+        if not key:
+            raise RuntimeError(
+                "GOOGLE_API_KEY is not configured in ops-agent/.env or environment."
+            )
+        return key
 
 
 @lru_cache
