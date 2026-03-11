@@ -19,7 +19,6 @@ Tools return contract envelope from `ops-agent/app/tools/contracts.py`.
 - `get_resolutions`
 - `get_escalation_contacts`
 - `load_session_messages`
-- `save_assistant_message`
 - `search_docs(query)`
 
 No additional tool names should be introduced in prompts or execution plans.

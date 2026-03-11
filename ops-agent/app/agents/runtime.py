@@ -19,7 +19,9 @@ T = TypeVar("T", bound=BaseModel)
 def ensure_adk_key_configured() -> None:
     settings = get_settings()
     if not settings.google_api_key.strip():
-        raise RuntimeError("GOOGLE_API_KEY is not configured in ops-agent/.env or environment.")
+        raise RuntimeError(
+            "GOOGLE_API_KEY is not configured in ops-agent/.env or environment."
+        )
 
 
 def build_stage_agent(

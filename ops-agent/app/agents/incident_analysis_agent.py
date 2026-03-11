@@ -94,7 +94,9 @@ async def analysis_with_adk_or_fallback(
             )
         )
 
-    decision = AnalysisDecision.INCONCLUSIVE if missing_information else AnalysisDecision.STOP
+    decision = (
+        AnalysisDecision.INCONCLUSIVE if missing_information else AnalysisDecision.STOP
+    )
     status = "inconclusive" if missing_information else "complete"
     return IncidentAnalysisOutput(
         hypotheses=hypotheses,

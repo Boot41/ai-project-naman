@@ -53,7 +53,9 @@ async def composer_with_adk_or_fallback(payload: ComposerInput) -> ComposerOutpu
         summary=summary,
         hypotheses=payload.hypotheses,
         similar_incidents=[
-            SimilarIncidentItem(incident_key=i.incident_key, similarity_reason=i.pattern)
+            SimilarIncidentItem(
+                incident_key=i.incident_key, similarity_reason=i.pattern
+            )
             for i in payload.context_content.historical_patterns
         ],
         evidence=[

@@ -111,7 +111,9 @@ async def run_investigation_pipeline(
             )
 
             start = perf_counter()
-            merged = await _fan_out_retrieval([item.model_dump() for item in orchestrator_output.tool_plan])
+            merged = await _fan_out_retrieval(
+                [item.model_dump() for item in orchestrator_output.tool_plan]
+            )
             logs.append(
                 _step_log(
                     trace_id=trace_id,
@@ -241,7 +243,9 @@ async def run_investigation_pipeline(
                         status="continue",
                         latency_ms=0,
                         confidence=analysis_out.confidence,
-                        evidence_refs=analysis_out.hypotheses[0].supporting_evidence_refs
+                        evidence_refs=analysis_out.hypotheses[
+                            0
+                        ].supporting_evidence_refs
                         if analysis_out.hypotheses
                         else [],
                     )
@@ -261,7 +265,9 @@ async def run_investigation_pipeline(
                     status="success",
                     latency_ms=_elapsed_ms(start),
                     confidence=analysis_out.confidence,
-                    evidence_refs=analysis_out.hypotheses[0].supporting_evidence_refs if analysis_out.hypotheses else [],
+                    evidence_refs=analysis_out.hypotheses[0].supporting_evidence_refs
+                    if analysis_out.hypotheses
+                    else [],
                 )
             )
 
@@ -285,7 +291,9 @@ async def run_investigation_pipeline(
                     context_content=context_out.context_content,
                     hypotheses=analysis_out.hypotheses,
                     confidence=analysis_out.confidence,
-                    status=OutputStatus.INCONCLUSIVE if analysis_out.status == "inconclusive" else OutputStatus.COMPLETE,
+                    status=OutputStatus.INCONCLUSIVE
+                    if analysis_out.status == "inconclusive"
+                    else OutputStatus.COMPLETE,
                 )
             )
             logs.append(
@@ -319,7 +327,9 @@ async def run_investigation_pipeline(
             )
 
     try:
-        return await asyncio.wait_for(_run(), timeout=policy.global_request_timeout_seconds)
+        return await asyncio.wait_for(
+            _run(), timeout=policy.global_request_timeout_seconds
+        )
     except asyncio.TimeoutError:
         return _error_result(
             trace_id=trace_id,
@@ -331,7 +341,9 @@ async def run_investigation_pipeline(
         )
 
 
-async def _fan_out_retrieval(tool_plan: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
+async def _fan_out_retrieval(
+    tool_plan: list[dict[str, Any]],
+) -> dict[str, list[dict[str, Any]]]:
     results = await asyncio.gather(*[_run_plan_item(item) for item in tool_plan])
     merged: dict[str, list[dict[str, Any]]] = {
         "incident": [],
@@ -350,7 +362,12 @@ async def _fan_out_retrieval(tool_plan: list[dict[str, Any]]) -> dict[str, list[
             data = [data]
         if tool_name == "get_incident_by_key":
             merged["incident"].extend(data)
-        elif tool_name in {"get_incident_services", "get_service_owner", "get_service_dependencies", "get_escalation_contacts"}:
+        elif tool_name in {
+            "get_incident_services",
+            "get_service_owner",
+            "get_service_dependencies",
+            "get_escalation_contacts",
+        }:
             merged["services"].extend(data)
         elif tool_name == "get_incident_evidence":
             merged["evidence"].extend(data)
@@ -400,7 +417,12 @@ def _minimum_evidence_threshold(
     resolutions: list[dict],
     docs: list[dict],
 ) -> bool:
-    return bool((incident and evidence) or services or (historical_incidents and resolutions) or docs)
+    return bool(
+        (incident and evidence)
+        or services
+        or (historical_incidents and resolutions)
+        or docs
+    )
 
 
 def _build_followup_plan(

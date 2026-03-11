@@ -37,7 +37,6 @@ Required behavior:
 - `get_resolutions`
 - `get_escalation_contacts`
 - `load_session_messages`
-- `save_assistant_message`
 - `search_docs`
 
 ## Scope Priority

@@ -52,7 +52,6 @@ Only these tools are in scope:
 - `get_resolutions`
 - `get_escalation_contacts`
 - `load_session_messages`
-- `save_assistant_message`
 - `search_docs`
 
 Tool implementations:

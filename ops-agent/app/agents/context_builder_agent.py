@@ -50,7 +50,8 @@ async def context_builder_with_adk_or_fallback(
 
     status = "in_progress"
     if (
-        payload.investigation_scope in {InvestigationScope.INCIDENT, InvestigationScope.REPORT}
+        payload.investigation_scope
+        in {InvestigationScope.INCIDENT, InvestigationScope.REPORT}
         and payload.incident_key
         and payload.incident is None
     ):
@@ -77,7 +78,11 @@ async def context_builder_with_adk_or_fallback(
                 or "Investigation context assembled from retrieved data."
             ),
             affected_services=[
-                AffectedService(service_name=str(item.get("service_name") or item.get("name") or "unknown"))
+                AffectedService(
+                    service_name=str(
+                        item.get("service_name") or item.get("name") or "unknown"
+                    )
+                )
                 for item in payload.services[:20]
             ],
             key_metrics=[],
@@ -102,14 +107,19 @@ async def context_builder_with_adk_or_fallback(
             historical_patterns=[
                 HistoricalPattern(
                     incident_key=str(item.get("incident_key") or f"hist-{i}"),
-                    pattern=str(item.get("similarity_reason") or "Historical similarity observed"),
+                    pattern=str(
+                        item.get("similarity_reason")
+                        or "Historical similarity observed"
+                    ),
                     relevance=PatternRelevance.MEDIUM,
                 )
                 for i, item in enumerate(payload.historical_incidents[:5], start=1)
             ],
             owners_and_escalation=[
                 OwnerEscalation(
-                    service_name=str(item.get("service_name") or item.get("name") or "unknown"),
+                    service_name=str(
+                        item.get("service_name") or item.get("name") or "unknown"
+                    ),
                     owner=(
                         str(item.get("owner") or "").strip()
                         or str(item.get("owner_full_name") or "").strip()

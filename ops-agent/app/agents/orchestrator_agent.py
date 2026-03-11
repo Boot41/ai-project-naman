@@ -31,7 +31,6 @@ from app.tools.agent_tools import (
     get_service_owner,
     get_similar_incidents,
     load_session_messages,
-    save_assistant_message,
     search_docs,
 )
 
@@ -68,7 +67,6 @@ orchestrator_agent = build_stage_agent(
         get_resolutions,
         get_escalation_contacts,
         load_session_messages,
-        save_assistant_message,
         search_docs,
     ],
 )
@@ -78,7 +76,9 @@ def build_orchestrator_agent() -> Agent:
     return orchestrator_agent
 
 
-async def orchestrate_with_adk_or_fallback(payload: OrchestratorInput) -> OrchestratorOutput:
+async def orchestrate_with_adk_or_fallback(
+    payload: OrchestratorInput,
+) -> OrchestratorOutput:
     try:
         return await run_json_stage_with_timeout(
             agent=orchestrator_agent,
@@ -122,7 +122,12 @@ def build_orchestrator_plan(payload: OrchestratorInput) -> OrchestratorOutput:
         ),
         ToolPlanItem(
             tool="search_docs",
-            args={"query": payload.query, "top_k": 5, "category": None, "service": service_name},
+            args={
+                "query": payload.query,
+                "top_k": 5,
+                "category": None,
+                "service": service_name,
+            },
             priority=ToolPriority.MEDIUM,
             reason="Retrieve runbook/postmortem/policy context.",
         ),
@@ -213,7 +218,9 @@ def build_orchestrator_plan(payload: OrchestratorInput) -> OrchestratorOutput:
     )
 
 
-def build_orchestrator_log(output: OrchestratorOutput, latency_ms: int, status: str) -> dict[str, str | int]:
+def build_orchestrator_log(
+    output: OrchestratorOutput, latency_ms: int, status: str
+) -> dict[str, str | int]:
     return {
         "agent": "OpsCopilotOrchestratorAgent",
         "scope": output.investigation_scope.value,
