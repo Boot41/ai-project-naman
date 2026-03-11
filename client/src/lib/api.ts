@@ -47,6 +47,8 @@ export const clearStoredAuth = (): void => {
 
 const api = axios.create({
   baseURL: "/",
+  // Wait for long-running investigation responses instead of timing out client-side.
+  timeout: 0,
 });
 
 api.interceptors.request.use((config) => {

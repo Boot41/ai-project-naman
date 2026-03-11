@@ -18,7 +18,8 @@ class Settings(BaseSettings):
     google_api_key: str = ""
     google_genai_use_vertexai: bool = False
     ops_agent_base_url: str = "http://localhost:8010"
-    ops_agent_timeout_seconds: float = 20.0
+    # Ops-agent investigations can take time due to multi-stage LLM + retrieval flow.
+    ops_agent_timeout_seconds: float = 480.0
 
     @property
     def effective_db_url(self) -> str:

@@ -5,7 +5,7 @@ import asyncio
 import json
 from uuid import uuid4
 
-from app.orchestration.pipeline import run_investigation_pipeline
+from app.investigation_flow import run_investigation_pipeline
 
 
 async def _main() -> None:

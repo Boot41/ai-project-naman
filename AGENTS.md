@@ -5,6 +5,12 @@ Build an OpsCopilot AI system that assists operations engineers in investigating
 
 The system must reason across multiple data sources and provide evidence-backed investigation support through natural language interaction.
 
+## Repository Folders
+
+- `client/`: React/Vite frontend UI and API client integration
+- `server/`: FastAPI backend, auth, business services, DB models/migrations
+- `ops-agent/`: Google ADK multi-agent investigation runtime (OpsCopilot orchestrator + stage agents + tools + docs resources)
+
 ## Backend Architecture
 
 - Data models in `server/app/db/models.py`
@@ -42,6 +48,9 @@ The system must reason across multiple data sources and provide evidence-backed 
 - `cd server && uv run uvicorn app.main:app --reload --port 8000`: run API in dev mode
 - `cd client && npm install`: install frontend dependencies
 - `cd client && npm run dev`: run Vite dev server
+- `cd ops-agent && uv sync`: install ops-agent dependencies
+- `cd ops-agent && uv run uvicorn app.main:app --reload --port 8010`: run ops-agent API
+- `cd ops-agent && uv run adk web adk_app`: run ADK Web for agent graph/manual testing
 
 ## Quality Gates
 
@@ -56,6 +65,10 @@ Backend (run from `server/`):
 Frontend (run from `client/`):
 - `npm run lint`: ESLint
 - `npm run build`: TypeScript check + production build
+
+Ops-Agent (run from `ops-agent/`):
+- `uv run ruff check .`: linting
+- `uv run pytest -q`: tests
 
 ## Coding Style
 

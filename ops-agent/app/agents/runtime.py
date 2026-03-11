@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 from typing import Any, TypeVar
@@ -16,14 +17,18 @@ T = TypeVar("T", bound=BaseModel)
 
 
 def ensure_adk_key_configured() -> None:
-    _ = get_settings().required_google_api_key
+    settings = get_settings()
+    if not settings.google_api_key.strip():
+        raise RuntimeError("GOOGLE_API_KEY is not configured in ops-agent/.env or environment.")
 
 
 def build_stage_agent(
     *, name: str, instruction: str, tools: list[Any] | None = None
 ) -> Agent:
     settings = get_settings()
-    os.environ["GOOGLE_API_KEY"] = settings.required_google_api_key
+    key = settings.google_api_key.strip()
+    if key:
+        os.environ["GOOGLE_API_KEY"] = key
 
     return Agent(
         name=name,
@@ -38,7 +43,8 @@ async def run_json_stage(
     *, agent: Agent, payload: BaseModel, output_model: type[T], user_id: str
 ) -> T:
     settings = get_settings()
-    os.environ["GOOGLE_API_KEY"] = settings.required_google_api_key
+    ensure_adk_key_configured()
+    os.environ["GOOGLE_API_KEY"] = settings.google_api_key.strip()
 
     session_service = InMemorySessionService()  # type: ignore[no-untyped-call]
     session = await session_service.create_session(
@@ -65,6 +71,28 @@ async def run_json_stage(
 
     parsed = _extract_json(final_text)
     return output_model.model_validate(parsed)
+
+
+async def run_json_stage_with_timeout(
+    *,
+    agent: Agent,
+    payload: BaseModel,
+    output_model: type[T],
+    user_id: str,
+    timeout_seconds: float,
+) -> T:
+    return await asyncio.wait_for(
+        asyncio.to_thread(
+            asyncio.run,
+            run_json_stage(
+                agent=agent,
+                payload=payload,
+                output_model=output_model,
+                user_id=user_id,
+            ),
+        ),
+        timeout=timeout_seconds,
+    )
 
 
 def _extract_json(text: str) -> dict:

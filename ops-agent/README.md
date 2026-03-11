@@ -6,10 +6,11 @@ Standalone Google ADK service for OpsCopilot flow validation.
 
 - `app/main.py`: FastAPI endpoints
 - `app/service.py`: pipeline entrypoints
-- `app/adk/`: Google ADK agent builders and stage runner
+- `app/investigation_flow.py`: end-to-end investigation runtime
 - `app/agents/`: 4-stage agent logic + ADK fallback wrappers
-- `app/orchestration/`: end-to-end workflow runtime
+- `app/contracts/`: stage and API contracts
 - `app/tools/`: tool contracts, docs search, tool registry
+- `adk_app/`: ADK web agent exports
 
 ## API
 
@@ -23,8 +24,8 @@ Request:
   "request_id": "req-123",
   "session_id": "11111111-1111-1111-1111-111111111111",
   "user_id": 42,
-  "query": "Why did incident INC-104 happen?",
-  "incident_key": "INC-104",
+  "query": "Why did incident INC-2026-0001 happen?",
+  "incident_key": "INC-2026-0001",
   "service_name": "payment-service"
 }
 ```
@@ -81,5 +82,5 @@ Notes:
 
 ```bash
 cd ops-agent
-uv run python run_agent.py "Why did incident INC-104 happen?" --user-id 1 --incident-key INC-104
+uv run python run_agent.py "Why did incident INC-2026-0001 happen?" --user-id 1 --incident-key INC-2026-0001
 ```

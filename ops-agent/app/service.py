@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from app.orchestration.pipeline import InvestigationResult, run_investigation_pipeline
+from app.investigation_flow import InvestigationResult, run_investigation_pipeline
 
 
 async def investigate(
