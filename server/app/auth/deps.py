@@ -22,7 +22,7 @@ async def require_user(
 ) -> User:
     settings = get_settings()
     try:
-        payload = jwt.decode(credentials.credentials, settings.secret_key, algorithms=["HS256"])
+        payload = jwt.decode(credentials.credentials, settings.jwt_secret, algorithms=["HS256"])
         if payload.get("type") != "access":
             raise ValueError("Invalid token type")
         user_id: int = int(payload["sub"])

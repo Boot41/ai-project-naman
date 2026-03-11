@@ -10,18 +10,33 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
+  ops-agent:
+    build: ./ops-agent
+    env_file:
+      - ./ops-agent/.env
+    environment:
+      MODEL_NAME: gemini-2.5-flash
+      OPS_AGENT_SEED_DIR: /seed_data
+    volumes:
+      - ./server/seed_data:/seed_data:ro
+    ports:
+      - "8010:8010"
+
   api:
     build: ./server
     environment:
       ENV: development
       DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/app_scaffold
-      SECRET_KEY: app-scaffold-secret-change-in-prod
+      SECRET_KEY: ${SECRET_KEY:-change-me-dev-secret-key-min-32-bytes}
       GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
       GOOGLE_GENAI_USE_VERTEXAI: "false"
+      OPS_AGENT_BASE_URL: http://ops-agent:8010
+      OPS_AGENT_TIMEOUT_SECONDS: "90"
     ports:
       - "8000:8000"
     depends_on:
       - db
+      - ops-agent
 
   client:
     build: ./client

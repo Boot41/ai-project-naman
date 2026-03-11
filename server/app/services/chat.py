@@ -1,17 +1,20 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+import logging
 from uuid import UUID
 
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import Message, Session
-from app.services.agent_client import AgentClientError, query_ops_agent
+from app.services.agent_client import AgentClientError, investigate_ops_agent
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_SESSION_TITLE = "New Investigation"
 ASSISTANT_FALLBACK_REPLY = (
-    "I could not reach the agent service to complete web search right now. "
+    "I could not reach the investigation agent service right now. "
     "Please try again in a moment."
 )
 
@@ -154,8 +157,19 @@ async def create_chat_turn(
     content_text: str,
     structured_json: dict[str, object] | None,
 ) -> tuple[Message | None, Message | None]:
+    logger.info(
+        "chat_turn_start session_id=%s user_id=%s query=%s",
+        session_id,
+        user_id,
+        content_text[:160],
+    )
     session = await get_session_for_user(db, session_id=session_id, user_id=user_id)
     if session is None:
+        logger.warning(
+            "chat_turn_session_not_found session_id=%s user_id=%s",
+            session_id,
+            user_id,
+        )
         return None, None
 
     user_message = await add_user_message(
@@ -163,16 +177,31 @@ async def create_chat_turn(
     )
 
     try:
-        reply_text = await query_ops_agent(query=content_text, user_id=str(user_id))
+        reply_text, assistant_structured = await investigate_ops_agent(
+            query=content_text,
+            user_id=user_id,
+            session_id=session.id,
+        )
     except AgentClientError:
+        logger.exception(
+            "chat_turn_agent_error session_id=%s user_id=%s",
+            session.id,
+            user_id,
+        )
         reply_text = ASSISTANT_FALLBACK_REPLY
-
-    assistant_structured = build_assistant_structured_payload(reply_text)
+        assistant_structured = build_assistant_structured_payload(reply_text)
     assistant_message = await add_assistant_message(
         db,
         session=session,
         content_text=reply_text,
         structured_json=assistant_structured,
+    )
+    logger.info(
+        "chat_turn_done session_id=%s user_id=%s user_msg_id=%s assistant_msg_id=%s",
+        session.id,
+        user_id,
+        user_message.id,
+        assistant_message.id,
     )
     return user_message, assistant_message
 

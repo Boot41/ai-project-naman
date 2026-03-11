@@ -92,6 +92,7 @@ Chat model:
 6. Run all quality gates.
 
 ## 9. Quality Gates (Run From `server/`)
+- `uv run ruff format --check .`
 - `uv run ruff check .`
 - `uv run mypy app`
 - `UV_CACHE_DIR=/tmp/uv-cache uv run lint-imports`
