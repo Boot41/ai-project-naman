@@ -14,8 +14,7 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_SESSION_TITLE = "New Investigation"
 ASSISTANT_FALLBACK_REPLY = (
-    "I could not reach the investigation agent service right now. "
-    "Please try again in a moment."
+    "I could not reach the investigation agent service right now. Please try again in a moment."
 )
 
 

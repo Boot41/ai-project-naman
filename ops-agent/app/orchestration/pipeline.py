@@ -95,7 +95,9 @@ async def run_investigation_pipeline(
             )
 
             start = perf_counter()
-            logger.info("pipeline_step_start trace_id=%s step=retrieval_fanout_merge", trace_id)
+            logger.info(
+                "pipeline_step_start trace_id=%s step=retrieval_fanout_merge", trace_id
+            )
             merged = await retrieval.fan_out(
                 [item.model_dump() for item in orchestrator_output.tool_plan]
             )
@@ -141,7 +143,9 @@ async def run_investigation_pipeline(
                 )
 
             start = perf_counter()
-            logger.info("pipeline_step_start trace_id=%s step=context_builder", trace_id)
+            logger.info(
+                "pipeline_step_start trace_id=%s step=context_builder", trace_id
+            )
             context_out = await context_builder_with_adk_or_fallback(
                 ContextBuilderInput(
                     request_id=request_id,
@@ -219,7 +223,9 @@ async def run_investigation_pipeline(
             )
 
             start = perf_counter()
-            logger.info("pipeline_step_start trace_id=%s step=response_composer", trace_id)
+            logger.info(
+                "pipeline_step_start trace_id=%s step=response_composer", trace_id
+            )
             composer_status = OutputStatus.COMPLETE
             if analysis_out.status == "inconclusive":
                 composer_status = OutputStatus.INCONCLUSIVE

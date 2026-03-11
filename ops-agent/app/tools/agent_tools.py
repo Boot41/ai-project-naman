@@ -92,7 +92,9 @@ def get_incident_by_key(incident_key: str) -> dict[str, Any]:
             return make_no_data_response(source, object_mode=True).model_dump()
         return make_success_response(source, incident).model_dump()
     except Exception as exc:
-        return make_error_response(source, "INCIDENT_LOOKUP_FAILED", str(exc)).model_dump()
+        return make_error_response(
+            source, "INCIDENT_LOOKUP_FAILED", str(exc)
+        ).model_dump()
 
 
 def get_incident_services(incident_key: str) -> dict[str, Any]:
@@ -123,7 +125,9 @@ def get_incident_services(incident_key: str) -> dict[str, Any]:
 
         return make_success_response(source, out).model_dump()
     except Exception as exc:
-        return make_error_response(source, "INCIDENT_SERVICES_FAILED", str(exc)).model_dump()
+        return make_error_response(
+            source, "INCIDENT_SERVICES_FAILED", str(exc)
+        ).model_dump()
 
 
 def get_incident_evidence(incident_key: str, limit: int = 200) -> dict[str, Any]:
@@ -135,7 +139,11 @@ def get_incident_evidence(incident_key: str, limit: int = 200) -> dict[str, Any]
 
         service_map = _service_by_id()
         incident_id = incident["id"]
-        rows = [e for e in _store()["incident_evidence"] if e.get("incident_id") == incident_id]
+        rows = [
+            e
+            for e in _store()["incident_evidence"]
+            if e.get("incident_id") == incident_id
+        ]
         if not rows:
             service_ids = {
                 int(rel["service_id"])
@@ -161,7 +169,9 @@ def get_incident_evidence(incident_key: str, limit: int = 200) -> dict[str, Any]
             data.append(payload)
         return make_success_response(source, data).model_dump()
     except Exception as exc:
-        return make_error_response(source, "INCIDENT_EVIDENCE_FAILED", str(exc)).model_dump()
+        return make_error_response(
+            source, "INCIDENT_EVIDENCE_FAILED", str(exc)
+        ).model_dump()
 
 
 def get_service_owner(service_name: str) -> dict[str, Any]:
@@ -183,7 +193,9 @@ def get_service_owner(service_name: str) -> dict[str, Any]:
         ]
         return make_success_response(source, data).model_dump()
     except Exception as exc:
-        return make_error_response(source, "SERVICE_OWNER_FAILED", str(exc)).model_dump()
+        return make_error_response(
+            source, "SERVICE_OWNER_FAILED", str(exc)
+        ).model_dump()
 
 
 def get_service_dependencies(service_name: str) -> dict[str, Any]:
@@ -211,7 +223,9 @@ def get_service_dependencies(service_name: str) -> dict[str, Any]:
             )
         return make_success_response(source, out).model_dump()
     except Exception as exc:
-        return make_error_response(source, "SERVICE_DEPENDENCIES_FAILED", str(exc)).model_dump()
+        return make_error_response(
+            source, "SERVICE_DEPENDENCIES_FAILED", str(exc)
+        ).model_dump()
 
 
 def get_similar_incidents(incident_key: str, limit: int = 5) -> dict[str, Any]:
@@ -245,7 +259,9 @@ def get_similar_incidents(incident_key: str, limit: int = 5) -> dict[str, Any]:
                     "status": incident.get("status"),
                     "severity": incident.get("severity"),
                     "service_overlap_count": overlap,
-                    "similarity_reason": "service_overlap" if overlap > 0 else "same_severity",
+                    "similarity_reason": "service_overlap"
+                    if overlap > 0
+                    else "same_severity",
                 }
             )
         out.sort(
@@ -256,7 +272,9 @@ def get_similar_incidents(incident_key: str, limit: int = 5) -> dict[str, Any]:
         )
         return make_success_response(source, out[: max(1, limit)]).model_dump()
     except Exception as exc:
-        return make_error_response(source, "SIMILAR_INCIDENTS_FAILED", str(exc)).model_dump()
+        return make_error_response(
+            source, "SIMILAR_INCIDENTS_FAILED", str(exc)
+        ).model_dump()
 
 
 def get_resolutions(incident_key: str) -> dict[str, Any]:
@@ -265,7 +283,9 @@ def get_resolutions(incident_key: str) -> dict[str, Any]:
         incident = _find_incident(incident_key)
         if incident is None:
             return make_no_data_response(source).model_dump()
-        rows = [r for r in _store()["resolutions"] if r.get("incident_id") == incident["id"]]
+        rows = [
+            r for r in _store()["resolutions"] if r.get("incident_id") == incident["id"]
+        ]
         return make_success_response(source, rows).model_dump()
     except Exception as exc:
         return make_error_response(source, "RESOLUTIONS_FAILED", str(exc)).model_dump()
@@ -288,17 +308,25 @@ def get_escalation_contacts(service_name: str) -> dict[str, Any]:
             row["service_name"] = service.get("name")
         return make_success_response(source, rows).model_dump()
     except Exception as exc:
-        return make_error_response(source, "ESCALATION_CONTACTS_FAILED", str(exc)).model_dump()
+        return make_error_response(
+            source, "ESCALATION_CONTACTS_FAILED", str(exc)
+        ).model_dump()
 
 
 def load_session_messages(session_id: str, limit: int = 30) -> dict[str, Any]:
     source = "load_session_messages"
     try:
-        rows = [m for m in _store()["messages"] if str(m.get("session_id")) == str(session_id)]
+        rows = [
+            m
+            for m in _store()["messages"]
+            if str(m.get("session_id")) == str(session_id)
+        ]
         rows.sort(key=lambda x: str(x.get("id", "")))
         return make_success_response(source, rows[-max(1, limit) :]).model_dump()
     except Exception as exc:
-        return make_error_response(source, "SESSION_MESSAGES_FAILED", str(exc)).model_dump()
+        return make_error_response(
+            source, "SESSION_MESSAGES_FAILED", str(exc)
+        ).model_dump()
 
 
 def save_assistant_message(
@@ -317,7 +345,9 @@ def save_assistant_message(
         }
         return make_success_response(source, payload).model_dump()
     except Exception as exc:
-        return make_error_response(source, "SAVE_ASSISTANT_MESSAGE_FAILED", str(exc)).model_dump()
+        return make_error_response(
+            source, "SAVE_ASSISTANT_MESSAGE_FAILED", str(exc)
+        ).model_dump()
 
 
 def search_docs(

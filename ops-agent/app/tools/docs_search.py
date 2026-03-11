@@ -181,9 +181,7 @@ def _best_line_index(lines: list[str], query_tokens: set[str]) -> int | None:
         if has_rca_query and ("root cause" in lowered):
             score += 2.0
         if has_action_query and (
-            "mitigation" in lowered
-            or "corrective" in lowered
-            or "actions" in lowered
+            "mitigation" in lowered or "corrective" in lowered or "actions" in lowered
         ):
             score += 1.5
 

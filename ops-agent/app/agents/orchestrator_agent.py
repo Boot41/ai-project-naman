@@ -71,8 +71,8 @@ Rules:
 - Do not provide narrative text.
 """.strip()
 
-_INCIDENT_KEY_PATTERN = re.compile(r"\bINC-\d+\b", re.IGNORECASE)
-_INCIDENT_VALIDATOR = re.compile(r"^INC-\d+$")
+_INCIDENT_KEY_PATTERN = re.compile(r"\bINC-(?:\d{4}-\d{4}|\d+)\b", re.IGNORECASE)
+_INCIDENT_VALIDATOR = re.compile(r"^INC-(?:\d{4}-\d{4}|\d+)$")
 _SERVICE_NAME_PATTERN = re.compile(r"\b([a-z0-9-]+-service)\b", re.IGNORECASE)
 
 
@@ -165,7 +165,9 @@ def _resolve_incident_key(payload: OrchestratorInput) -> str | None:
     if payload.incident_key:
         key = payload.incident_key.upper().strip()
         if not _INCIDENT_VALIDATOR.match(key):
-            raise ValueError("incident_key must match ^INC-[0-9]+$")
+            raise ValueError(
+                "incident_key must match legacy INC-123 or canonical INC-2026-0001"
+            )
         return key
 
     match = _INCIDENT_KEY_PATTERN.search(payload.query)

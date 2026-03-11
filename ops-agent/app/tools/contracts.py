@@ -8,7 +8,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
-_INCIDENT_PATTERN = re.compile(r"^INC-[0-9]+$")
+_INCIDENT_PATTERN = re.compile(r"^INC-(?:\d{4}-\d{4}|\d+)$")
 
 
 class ToolError(BaseModel):
@@ -46,7 +46,9 @@ def validate_incident_key(incident_key: str | None) -> None:
     if incident_key is None:
         return
     if not _INCIDENT_PATTERN.match(incident_key):
-        raise ValueError("incident_key must match ^INC-[0-9]+$")
+        raise ValueError(
+            "incident_key must match legacy INC-123 or canonical INC-2026-0001"
+        )
 
 
 def validate_confidence(confidence: float) -> None:
