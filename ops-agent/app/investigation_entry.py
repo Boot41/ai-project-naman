@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from app.agents.orchestrator_agent import run_investigation_via_root_agent
+from app.agents.orchestrator_runtime import run_investigation_via_root_agent
 from app.contracts.investigation_result import InvestigationResult
 
 
