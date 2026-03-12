@@ -13,6 +13,9 @@ from app.contracts.incident_analysis import (
 )
 from app.contracts.orchestrator import InvestigationScope
 from app.tools.agent_tools import (
+    get_incident_by_key,
+    get_incident_services,
+    get_resolutions,
     get_service_dependencies,
     get_service_owner,
     get_similar_incidents,
@@ -45,6 +48,9 @@ incident_analysis_agent = build_stage_agent(
     name=AGENT_NAME,
     instruction=INCIDENT_ANALYSIS_PROMPT,
     tools=[
+        get_incident_by_key,
+        get_incident_services,
+        get_resolutions,
         get_service_dependencies,
         get_service_owner,
         get_similar_incidents,

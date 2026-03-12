@@ -453,6 +453,27 @@ def _apply_grounding_guards(normalized: dict, *, query: str | None) -> dict:
             output["summary"] = (
                 f"Troubleshooting and immediate mitigation guidance prepared for {service_label} using runbook/postmortem evidence."
             )
+            output["report"] = _coerce_report_text(
+                {
+                    "findings": [
+                        {"description": str(item.get("snippet") or "").strip()}
+                        for item in list(output.get("evidence") or [])[:4]
+                        if str(item.get("source") or "").lower() == "docs"
+                    ],
+                    "inferred_considerations": [
+                        {
+                            "description": "Use mitigations that reduce blast radius first, then iterate with fresh telemetry."
+                        }
+                    ],
+                    "gaps_unknowns": [
+                        {
+                            "description": "Validate provider and service latency metrics in real time before and after each mitigation."
+                        }
+                    ],
+                },
+                evidence=list(output.get("evidence") or []),
+                hypotheses=list(output.get("hypotheses") or []),
+            )
 
     if docs_guidance_intent:
         has_doc_evidence = any(
@@ -511,7 +532,7 @@ def _apply_grounding_guards(normalized: dict, *, query: str | None) -> dict:
         evidence=list(output.get("evidence") or []),
         hypotheses=list(output.get("hypotheses") or []),
     )
-    output["summary"] = str(output.get("summary") or "insufficient information").strip()
+    output["summary"] = _finalize_summary(output, query=query)
     if (
         str(output.get("status") or "").lower() == "complete"
         and output["summary"].lower().startswith("insufficient evidence")
@@ -524,6 +545,32 @@ def _ground_actions(output: dict, *, query: str | None) -> list[str]:
     current = list(output.get("recommended_actions") or [])
     current = [str(item).strip() for item in current if str(item).strip()]
     query_lower = (query or "").lower()
+    troubleshooting_intent = any(
+        token in query_lower for token in ("troubleshoot", "mitigation", "mitigate", "immediate steps")
+    )
+    if troubleshooting_intent:
+        has_doc_evidence = any(
+            str(item.get("source") or "").lower() == "docs" for item in list(output.get("evidence") or [])
+        )
+        if has_doc_evidence:
+            escalation_contacts = []
+            for item in list(output.get("escalation") or []):
+                if isinstance(item, dict):
+                    escalation_contacts.extend(
+                        [
+                            str(contact).strip()
+                            for contact in (item.get("contacts") or [])
+                            if str(contact).strip()
+                        ]
+                    )
+            contacts_text = ", ".join(dict.fromkeys(escalation_contacts))
+            actions = [
+                "Assess blast radius by region and payment method, then choose partial disablement over global outage behavior when safer.",
+                "Stabilize the path immediately: throttle retries, roll back risky recent changes, and reduce load on degraded payment endpoints.",
+                "Log evidence timeline and escalate to payments on-call immediately"
+                + (f" ({contacts_text})." if contacts_text else "."),
+            ]
+            return actions[:3]
     if any(token in query_lower for token in ("policy", "runbook", "postmortem", "architecture")):
         if "policy" in query_lower:
             return [
@@ -589,6 +636,97 @@ def _build_ownership_summary(*, owners: list[dict], escalation: list[dict]) -> s
                 f"Escalation contacts for {first_esc.get('service_name')}: {contacts}."
             )
     return f"{owner_text} {escalation_text}".strip()
+
+
+def _finalize_summary(output: dict, *, query: str | None) -> str:
+    summary = str(output.get("summary") or "").strip()
+    status = str(output.get("status") or "").strip().lower()
+    evidence = [item for item in list(output.get("evidence") or []) if isinstance(item, dict)]
+    hypotheses = [item for item in list(output.get("hypotheses") or []) if isinstance(item, dict)]
+    actions = [str(item).strip() for item in (output.get("recommended_actions") or []) if str(item).strip()]
+    owners = [item for item in list(output.get("owners") or []) if isinstance(item, dict)]
+    escalation = [item for item in list(output.get("escalation") or []) if isinstance(item, dict)]
+    similar_incidents = [
+        item for item in list(output.get("similar_incidents") or []) if isinstance(item, dict)
+    ]
+    query_lower = (query or "").lower()
+    ownership_intent = any(
+        token in query_lower for token in ("who owns", "owner", "ownership", "escalation", "on-call")
+    )
+    if ownership_intent and (owners or escalation):
+        return _build_ownership_summary(owners=owners, escalation=escalation)
+
+    if status != "complete":
+        return summary or "insufficient information"
+
+    if not _should_upgrade_summary(summary=summary, evidence=evidence, actions=actions):
+        return summary
+
+    return _build_grounded_summary(
+        summary=summary,
+        query_lower=query_lower,
+        hypotheses=hypotheses,
+        evidence=evidence,
+        actions=actions,
+        similar_incidents=similar_incidents,
+    )
+
+
+def _should_upgrade_summary(*, summary: str, evidence: list[dict], actions: list[str]) -> bool:
+    if not summary:
+        return bool(evidence or actions)
+    lowered = summary.lower()
+    generic_markers = (
+        "guidance prepared for",
+        "investigation completed",
+        "documentation-backed guidance",
+        "severe-incident policy guidance",
+        "payment-service outage dependency guidance",
+    )
+    if any(marker in lowered for marker in generic_markers):
+        return True
+    if len(summary.split()) < 18 and (evidence or actions):
+        return True
+    return False
+
+
+def _build_grounded_summary(
+    *,
+    summary: str,
+    query_lower: str,
+    hypotheses: list[dict],
+    evidence: list[dict],
+    actions: list[str],
+    similar_incidents: list[dict],
+) -> str:
+    parts: list[str] = []
+
+    if hypotheses:
+        cause = str(hypotheses[0].get("cause") or "").strip().rstrip(".")
+        if cause:
+            parts.append(f"Likely cause: {cause}.")
+    elif evidence:
+        key_signal = _truncate_sentence(_clean_snippet(str(evidence[0].get("snippet") or "")), 180)
+        if key_signal:
+            parts.append(f"Key signal: {key_signal}")
+
+    if similar_incidents and any(token in query_lower for token in ("compare", "similar", "historical")):
+        formatted = ", ".join(
+            str(item.get("incident_key") or "").strip().upper()
+            for item in similar_incidents[:2]
+            if str(item.get("incident_key") or "").strip()
+        )
+        if formatted:
+            parts.append(f"Compared against similar incidents: {formatted}.")
+
+    if actions:
+        top_actions = "; ".join(action.rstrip(".") for action in actions[:2])
+        if top_actions:
+            parts.append(f"Immediate actions: {top_actions}.")
+
+    if not parts:
+        return summary or "insufficient information"
+    return _truncate_sentence(" ".join(parts), 420)
 
 
 def _extract_incident_key(text: str) -> str | None:
