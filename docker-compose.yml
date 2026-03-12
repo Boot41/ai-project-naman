@@ -34,7 +34,7 @@ services:
       OPS_AGENT_BASE_URL: http://ops-agent:8010
       OPS_AGENT_TIMEOUT_SECONDS: "90"
     ports:
-      - "8000:8000"
+      - "8020:8020"
     depends_on:
       - db
       - ops-agent

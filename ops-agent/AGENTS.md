@@ -13,7 +13,7 @@ Build and maintain the simplified OpsCopilot ADK flow:
 - API entry: `app/main.py` (`POST /v1/investigate`)
 - Service entry: `app/service.py::investigate(...)`
 - Shared entry routing: `app/investigation_entry.py::run_investigation_entrypoint(...)`
-- Investigation runtime: `app/investigation_flow.py::run_investigation_pipeline(...)`
+- ADK runtime entry: `app/agents/orchestrator_agent.py::run_investigation_via_root_agent(...)`
 - CLI runner: `run_agent.py`
 - ADK web exports:
   - `adk_app/agent.py`
@@ -29,14 +29,19 @@ There is no `app/orchestration/` runtime in active flow.
   - stage planner (`orchestrate_with_adk_or_fallback`)
 
 API routing note:
-- `run_investigation_via_root_agent(...)` now delegates directly to `run_investigation_pipeline(...)` for deterministic API behavior.
-- ADK Web remains graph-driven via `root_agent` export.
+- API and ADK Web both execute `root_agent` graph runtime.
 - `app/agents/context_builder_agent.py`
 - `app/agents/incident_analysis_agent.py`
 - `app/agents/response_composer_agent.py`
 - `app/agents/runtime.py` (shared ADK stage execution helpers)
 
 Prompts are inline constants in these files.
+
+Prompt/routing behavior:
+- Agent-first decision making (planner + stage prompts).
+- For docs-guidance queries, orchestrator routes docs retrieval with category hints:
+  - `policies`, `runbooks`, `postmortems`, `architecture`.
+- For policy/architecture docs retrieval, bundle search avoids over-filtering by `service`.
 
 ## Model
 
@@ -49,6 +54,7 @@ Prompts are inline constants in these files.
 Only these tools are in scope:
 
 - `get_incident_by_key`
+- `get_investigation_bundle`
 - `get_incident_services`
 - `get_incident_evidence`
 - `get_service_owner`
@@ -65,12 +71,20 @@ Tool implementations:
 - `app/tools/docs_search.py`
 - `app/tools/contracts.py`
 
+Docs source of truth:
+- `resources/index.json`
+- `resources/runbooks/*`
+- `resources/postmortems/*`
+- `resources/policies/*`
+- `resources/architecture/*`
+
 ## Contracts
 
 - `app/contracts/orchestrator.py`
 - `app/contracts/context_builder.py`
 - `app/contracts/incident_analysis.py`
 - `app/contracts/response_composer.py`
+- `app/contracts/investigation_result.py`
 - `app/schemas.py`
 
 All stage I/O must validate against contracts.
@@ -89,8 +103,10 @@ uv sync
 uv run uvicorn app.main:app --reload --port 8010
 uv run python run_agent.py "Summarize incident INC-2026-0001." --user-id 1
 uv run adk web adk_app
-uv run ruff check .
 ```
+
+Note:
+- `ruff`/`mypy` are not currently declared in `ops-agent/pyproject.toml`; add them before enforcing local lint/typecheck commands in this package.
 
 ## Change Checklist
 
@@ -98,4 +114,4 @@ uv run ruff check .
 2. Keep tool set restricted to allowed list above.
 3. Keep JSON contracts strict; no free-form outputs between stages.
 4. Keep insufficient-data behavior explicit: `"we don't have knowledge about this"` / `"insufficient information"`.
-5. Run `ruff check` on changed files.
+5. Keep docs answers evidence-backed from `resources` corpus (policy/runbook/postmortem/architecture).

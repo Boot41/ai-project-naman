@@ -20,7 +20,14 @@ AGENT_NAME = "ContextBuilderAgent"
 CONTEXT_BUILDER_PROMPT = """
 You are ContextBuilderAgent.
 Transform retrieval outputs into ContextBuilderOutput JSON only.
+Input-handoff rule:
+- Read the latest orchestrator output and retrieval/tool outputs from conversation context.
+- If bundled retrieval payload exists, unpack it first.
 Do not invent facts. If data is missing, say "insufficient information" in open_questions.
+Keep evidence ids stable so downstream analysis/composer can reference them.
+For documentation/policy/architecture questions:
+- prioritize `documentation_findings` and preserve concrete snippet text
+- set `incident_summary` from documentation findings when incident data is absent
 Do not emit markdown/code fences.
 Never output placeholder text like "already processed" or "no more outputs needed".
 """.strip()
@@ -77,6 +84,11 @@ async def context_builder_with_adk_or_fallback(
             incident_summary=(
                 str((payload.incident or {}).get("summary") or "").strip()
                 or str((payload.incident or {}).get("title") or "").strip()
+                or (
+                    str((payload.docs[0] or {}).get("content_snippet") or "").strip()
+                    if payload.docs
+                    else ""
+                )
                 or "Investigation context assembled from retrieved data."
             ),
             affected_services=[

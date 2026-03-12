@@ -23,6 +23,8 @@ AGENT_NAME = "IncidentAnalysisAgent"
 INCIDENT_ANALYSIS_PROMPT = """
 You are IncidentAnalysisAgent.
 Return IncidentAnalysisOutput JSON only.
+Input-handoff rule:
+- Use ContextBuilderOutput from the latest prior stage as the source of truth.
 Use only provided evidence from incident/events/docs/services.
 Do not present assumptions as facts.
 For each hypothesis:
@@ -33,6 +35,10 @@ If uncertain, say "we don't have knowledge about this".
 Do not emit markdown/code fences.
 Never output placeholder text like "already processed" or "no more outputs needed".
 For each user turn, produce a complete analysis output.
+For policy/runbook/postmortem/architecture guidance questions:
+- do not force root-cause hypotheses
+- keep hypotheses empty when the user asked for documentation summary/guidance
+- mark status `complete` when documentation evidence is sufficient
 """.strip()
 
 incident_analysis_agent = build_stage_agent(
@@ -56,6 +62,29 @@ async def analysis_with_adk_or_fallback(
     *,
     policy: LoopRuntimePolicy | None = None,
 ) -> IncidentAnalysisOutput:
+    query_lower = payload.query.lower()
+    docs_guidance_intent = any(
+        token in query_lower
+        for token in ("policy", "runbook", "postmortem", "architecture", "dependency")
+    )
+    if docs_guidance_intent and payload.docs:
+        return IncidentAnalysisOutput(
+            hypotheses=[],
+            analysis_decision=AnalysisDecision.STOP,
+            missing_information=[],
+            confidence=0.75,
+            status="complete",
+            iteration_summaries=[
+                IterationSummary(
+                    iteration=1,
+                    requested_additional_tools=[],
+                    received_evidence_count=len(payload.docs),
+                    confidence_delta=0.0,
+                    decision=AnalysisDecision.STOP,
+                )
+            ],
+        )
+
     if payload.investigation_scope == InvestigationScope.OWNERSHIP:
         owner_rows = [
             row

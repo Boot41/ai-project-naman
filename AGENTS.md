@@ -36,7 +36,7 @@ The system must reason across multiple data sources and provide evidence-backed 
 
 ## Development Workflow
 
-- Developer starts React/Vite on :5173 and FastAPI on :8000
+- Developer starts React/Vite on :5173 and FastAPI on :8020
 - Vite proxies API requests to FastAPI
 - PostgreSQL runs via Docker Compose on :5434
 
@@ -45,7 +45,7 @@ The system must reason across multiple data sources and provide evidence-backed 
 - `docker-compose up -d db`: start PostgreSQL locally
 - `cd server && uv sync --all-extras`: install backend dependencies (including dev tools)
 - `cd server && uv run alembic upgrade head`: apply DB migrations
-- `cd server && uv run uvicorn app.main:app --reload --port 8000`: run API in dev mode
+- `cd server && uv run uvicorn app.main:app --reload --port 8020`: run API in dev mode
 - `cd client && npm install`: install frontend dependencies
 - `cd client && npm run dev`: run Vite dev server
 - `cd ops-agent && uv sync`: install ops-agent dependencies

@@ -20,6 +20,9 @@ AGENT_NAME = "ResponseComposerAgent"
 RESPONSE_COMPOSER_PROMPT = """
 You are ResponseComposerAgent.
 Return valid ComposerOutput JSON only.
+Input-handoff rule:
+- Use latest IncidentAnalysisOutput and ContextBuilderOutput from prior stages.
+- Preserve evidence refs from analysis/context; do not create fake refs.
 Never wrap output in markdown or code fences.
 Never return placeholder/meta responses such as:
 - "No more outputs are needed"
@@ -37,6 +40,13 @@ Quality bar:
 - Each action must be concrete and operational (owner/team + what to check/do).
 - If evidence is insufficient, explicitly state "insufficient information" and keep actions as data-gathering steps.
 - Avoid repetition and generic advice.
+For documentation/policy/architecture questions:
+- answer directly from documentation findings
+- include concrete policy/dependency points in summary, not generic "guidance retrieved"
+- keep status `complete` when docs evidence exists
+Status rule:
+- use `complete` only when summary/hypotheses/evidence are consistent.
+- use `inconclusive` when key evidence is missing or contradictory.
 For payment-service latency queries, prioritize actions in this order unless evidence strongly contradicts it:
 1) external payment processor health/latency check,
 2) retry amplification control in upstream services (`order-service`, `api-gateway`),
@@ -73,10 +83,36 @@ async def composer_with_adk_or_fallback(payload: ComposerInput) -> ComposerOutpu
         else (payload.context_content.incident_summary or "Investigation completed.")
     )
     query_lower = payload.query.lower()
+    is_docs_guidance = any(
+        token in query_lower
+        for token in ("policy", "runbook", "postmortem", "architecture", "dependency")
+    )
+    if is_docs_guidance and payload.context_content.documentation_findings:
+        first_doc = payload.context_content.documentation_findings[0]
+        summary = first_doc.finding[:260] or summary
     is_payment_latency = (
         "payment-service" in query_lower and "latency" in query_lower
     ) or ("payment" in query_lower and "latency" in query_lower)
-    if is_payment_latency:
+    if is_docs_guidance:
+        if "policy" in query_lower:
+            fallback_actions = [
+                "Apply severe-incident criteria from policy to classify current impact and severity.",
+                "Assign required severe-incident roles and responsibilities per policy.",
+                "Execute policy-defined escalation and communications timeline.",
+            ]
+        elif "architecture" in query_lower or "dependency" in query_lower:
+            fallback_actions = [
+                "Validate payment-service critical dependencies in order: provider, order-service, api-gateway, auth-service.",
+                "Check retry/circuit-breaker behavior on upstream callers to limit blast radius during payment degradation.",
+                "Use dependency map to prioritize mitigations on Tier 1 path before lower-priority services.",
+            ]
+        else:
+            fallback_actions = [
+                "Use cited documentation points as the immediate execution checklist.",
+                "Validate current telemetry against documentation assumptions before applying mitigations.",
+                "Record actions with evidence refs in the incident timeline.",
+            ]
+    elif is_payment_latency:
         fallback_actions = [
             "Payments On-call: validate external payment processor health (status page, auth roundtrip latency, error codes) and isolate provider-specific degradation.",
             "Platform SRE: reduce retry amplification from order-service and api-gateway (retry budget, backoff, temporary circuit-break/traffic shaping).",
@@ -140,7 +176,7 @@ async def composer_with_adk_or_fallback(payload: ComposerInput) -> ComposerOutpu
         ],
         recommended_actions=fallback_actions,
         report=report,
-        status=payload.status,
+        status=OutputStatus.COMPLETE if is_docs_guidance and payload.context_content.documentation_findings else payload.status,
     )
 
 

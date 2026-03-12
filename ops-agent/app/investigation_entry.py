@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from app.agents.orchestrator_agent import run_investigation_via_root_agent
-from app.investigation_flow import InvestigationResult
+from app.contracts.investigation_result import InvestigationResult
 
 
 async def run_investigation_entrypoint(

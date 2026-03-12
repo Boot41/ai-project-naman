@@ -178,12 +178,12 @@ def _build_snippet(content: str, query_tokens: set[str]) -> str:
 
     best_idx = _best_line_index(lines, query_tokens)
     if best_idx is None:
-        return lines[0][:280]
+        return _truncate_sentence(lines[0], 280)
 
     # Return a short local window so the model gets actionable detail,
     # not just a heading token match.
     window = _snippet_window(lines, best_idx, max_lines=5)
-    return window[:560]
+    return _truncate_sentence(window, 560)
 
 
 def _tokenize(text: str) -> set[str]:
@@ -239,3 +239,23 @@ def _snippet_window(lines: list[str], center_idx: int, max_lines: int) -> str:
         out.append(line)
 
     return " ".join(out)
+
+
+def _truncate_sentence(text: str, limit: int) -> str:
+    if len(text) <= limit:
+        return text.strip()
+
+    sentence_end = re.search(r"[.!?](?=\s|$)", text[limit : limit + 140])
+    if sentence_end:
+        end = limit + sentence_end.end()
+        return text[:end].strip()
+
+    cut = text[:limit]
+    endings = list(re.finditer(r"[.!?](?=\s|$)", cut))
+    if endings and endings[-1].end() >= int(limit * 0.55):
+        return cut[: endings[-1].end()].strip()
+
+    boundary = cut.rfind(" ")
+    if boundary > 0:
+        return cut[:boundary].strip()
+    return cut.strip()

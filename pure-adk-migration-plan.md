@@ -117,3 +117,23 @@ Out of scope:
 4. PR-4: Tests, parity fixes, and default switch to ADK mode
 5. PR-5: Pipeline runtime deprecation/removal cleanup
 
+## Execution Update (Branch: `agent-pipeline-fix`)
+- We are implementing directly on an isolated branch, so no runtime feature flag is required.
+- Migration approach for this branch:
+  1. Switch API entry runtime to execute ADK `root_agent` directly.
+  2. Keep API response envelope stable via adapter mapping.
+  3. Validate parity on key prompts/session-memory flows.
+  4. Remove pipeline runtime dependency after parity checks.
+
+### Revised Immediate Steps
+1. Replace API runtime call path from `run_investigation_pipeline(...)` to ADK `Runner(root_agent, ...)`.
+2. Parse final ADK output and normalize to `InvestigationResult` schema.
+3. Keep `root_agent` export for ADK Web unchanged.
+4. Run targeted regression scenarios and then remove unused pipeline runtime code.
+
+## Implementation Status
+- Done: API runtime now executes ADK `root_agent` and normalizes output envelope.
+- Done: Agent prompt handoff guidance tightened for orchestrator/context/analysis/composer.
+- Done: Added `get_investigation_bundle` composite retrieval tool (parallel internal execution) for lower latency and stable context handoff.
+- Done: Runtime result/error models extracted to `app/contracts/investigation_result.py` to reduce pipeline coupling.
+- Pending: full regression parity run against golden prompts before deleting `app/investigation_flow.py` file completely.

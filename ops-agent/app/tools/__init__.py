@@ -1,5 +1,6 @@
 from app.tools.agent_tools import (
     get_escalation_contacts,
+    get_investigation_bundle,
     get_incident_by_key,
     get_incident_evidence,
     get_incident_services,
@@ -14,6 +15,7 @@ from app.tools.docs_search import search_docs
 
 __all__ = [
     "get_escalation_contacts",
+    "get_investigation_bundle",
     "get_incident_by_key",
     "get_incident_evidence",
     "get_incident_services",
