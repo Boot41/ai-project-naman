@@ -4,11 +4,12 @@ import json
 import logging
 import os
 import re
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date, datetime
 from decimal import Decimal
 from functools import lru_cache
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 from uuid import UUID, uuid4
 
 from app.tools.contracts import (
@@ -27,6 +28,8 @@ except Exception:  # pragma: no cover - optional runtime dependency
 
 logger = logging.getLogger(__name__)
 _LEGACY_INCIDENT_PATTERN = re.compile(r"^INC-(\d{3})$")
+_INCIDENT_KEY_IN_QUERY = re.compile(r"\bINC-(?:\d{4}-\d{4}|\d+)\b", re.IGNORECASE)
+_SERVICE_IN_QUERY = re.compile(r"\b([a-z0-9-]+-service)\b", re.IGNORECASE)
 
 
 def _database_url() -> str:
@@ -650,6 +653,159 @@ def save_assistant_message(
         ).model_dump()
 
 
+def get_investigation_bundle(
+    query: str,
+    session_id: str,
+    incident_key: str | None = None,
+    service_name: str | None = None,
+    docs_category: str | None = None,
+    top_k_docs: int = 5,
+) -> dict[str, Any]:
+    source = "get_investigation_bundle"
+    try:
+        resolved_incident_key = _resolve_incident_key_from_inputs(
+            query=query, incident_key=incident_key
+        )
+        resolved_service_name = _resolve_service_name_from_inputs(
+            query=query, service_name=service_name
+        )
+
+        docs_service = (
+            resolved_service_name
+            if docs_category not in {"policies", "architecture"}
+            else None
+        )
+        jobs: list[tuple[str, Callable[[], dict[str, Any]]]] = [
+            ("load_session_messages", lambda: load_session_messages(session_id, limit=30)),
+            (
+                "search_docs",
+                lambda: search_docs(
+                    query=query,
+                    top_k=max(1, int(top_k_docs)),
+                    category=docs_category,
+                    service=docs_service,
+                ),
+            ),
+        ]
+        if resolved_incident_key:
+            jobs.extend(
+                [
+                    (
+                        "get_incident_by_key",
+                        lambda: get_incident_by_key(resolved_incident_key),
+                    ),
+                    (
+                        "get_incident_services",
+                        lambda: get_incident_services(resolved_incident_key),
+                    ),
+                    (
+                        "get_incident_evidence",
+                        lambda: get_incident_evidence(resolved_incident_key, limit=200),
+                    ),
+                    (
+                        "get_similar_incidents",
+                        lambda: get_similar_incidents(resolved_incident_key, limit=5),
+                    ),
+                    (
+                        "get_resolutions",
+                        lambda: get_resolutions(resolved_incident_key),
+                    ),
+                ]
+            )
+        if resolved_service_name:
+            jobs.extend(
+                [
+                    (
+                        "get_service_owner",
+                        lambda: get_service_owner(resolved_service_name),
+                    ),
+                    (
+                        "get_service_dependencies",
+                        lambda: get_service_dependencies(resolved_service_name),
+                    ),
+                    (
+                        "get_escalation_contacts",
+                        lambda: get_escalation_contacts(resolved_service_name),
+                    ),
+                ]
+            )
+
+        raw_results: dict[str, dict[str, Any]] = {}
+        with ThreadPoolExecutor(max_workers=min(10, len(jobs) or 1)) as executor:
+            futures = {executor.submit(fn): name for name, fn in jobs}
+            for future in as_completed(futures):
+                name = futures[future]
+                try:
+                    raw_results[name] = future.result()
+                except Exception as exc:
+                    raw_results[name] = make_error_response(
+                        name, "TOOL_EXECUTION_FAILED", str(exc)
+                    ).model_dump()
+
+        service_names: list[str] = []
+        base_service_rows = _tool_rows(raw_results.get("get_incident_services"))
+        for row in base_service_rows:
+            name = str(row.get("service_name") or "").strip().lower()
+            if name:
+                service_names.append(name)
+        if resolved_service_name:
+            service_names.append(resolved_service_name)
+        unique_services = list(dict.fromkeys(service_names))[:5]
+        for name in unique_services:
+            owner_key = f"get_service_owner:{name}"
+            esc_key = f"get_escalation_contacts:{name}"
+            dep_key = f"get_service_dependencies:{name}"
+            raw_results[owner_key] = get_service_owner(name)
+            raw_results[esc_key] = get_escalation_contacts(name)
+            raw_results[dep_key] = get_service_dependencies(name)
+
+        merged = {
+            "incident": _tool_rows(raw_results.get("get_incident_by_key")),
+            "services": _merge_rows(
+                [
+                    _tool_rows(raw_results.get("get_incident_services")),
+                    _tool_rows(raw_results.get("get_service_owner")),
+                    _tool_rows(raw_results.get("get_service_dependencies")),
+                    _tool_rows(raw_results.get("get_escalation_contacts")),
+                    *[
+                        _tool_rows(raw_results.get(f"get_service_owner:{name}"))
+                        for name in unique_services
+                    ],
+                    *[
+                        _tool_rows(raw_results.get(f"get_service_dependencies:{name}"))
+                        for name in unique_services
+                    ],
+                    *[
+                        _tool_rows(raw_results.get(f"get_escalation_contacts:{name}"))
+                        for name in unique_services
+                    ],
+                ]
+            ),
+            "evidence": _merge_rows(
+                [
+                    _tool_rows(raw_results.get("get_incident_evidence")),
+                    _tool_rows(raw_results.get("get_resolutions")),
+                ]
+            ),
+            "docs": _tool_rows(raw_results.get("search_docs")),
+            "historical_incidents": _tool_rows(raw_results.get("get_similar_incidents")),
+            "resolutions": _tool_rows(raw_results.get("get_resolutions")),
+            "session_history": _tool_rows(raw_results.get("load_session_messages")),
+        }
+
+        return make_success_response(
+            source,
+            {
+                "resolved_incident_key": resolved_incident_key,
+                "resolved_service_name": resolved_service_name,
+                "merged": merged,
+                "raw_results": raw_results,
+            },
+        ).model_dump()
+    except Exception as exc:
+        return make_error_response(source, "INVESTIGATION_BUNDLE_FAILED", str(exc)).model_dump()
+
+
 def search_docs(
     query: str,
     top_k: int = 5,
@@ -657,3 +813,53 @@ def search_docs(
     service: str | None = None,
 ) -> dict[str, Any]:
     return docs_search_fn(query=query, top_k=top_k, category=category, service=service)
+
+
+def _tool_rows(payload: dict[str, Any] | None) -> list[dict[str, Any]]:
+    if not payload or not payload.get("ok", False):
+        return []
+    data = payload.get("data", [])
+    if isinstance(data, list):
+        return [item for item in data if isinstance(item, dict)]
+    if isinstance(data, dict):
+        return [data]
+    return []
+
+
+def _merge_rows(chunks: list[list[dict[str, Any]]]) -> list[dict[str, Any]]:
+    merged: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for rows in chunks:
+        for row in rows:
+            sig = _record_signature(row)
+            if sig in seen:
+                continue
+            seen.add(sig)
+            merged.append(row)
+    return merged
+
+
+def _record_signature(item: dict[str, Any]) -> str:
+    for key in ("id", "event_id", "doc_id", "incident_key", "service_name"):
+        value = item.get(key)
+        if value:
+            return f"{key}:{value}"
+    return str(sorted(item.items()))
+
+
+def _resolve_incident_key_from_inputs(*, query: str, incident_key: str | None) -> str | None:
+    if incident_key and incident_key.strip():
+        return _resolve_incident_key(incident_key)
+    match = _INCIDENT_KEY_IN_QUERY.search(query)
+    if match:
+        return _resolve_incident_key(match.group(0))
+    return None
+
+
+def _resolve_service_name_from_inputs(*, query: str, service_name: str | None) -> str | None:
+    if service_name and service_name.strip():
+        return service_name.strip().lower()
+    match = _SERVICE_IN_QUERY.search(query)
+    if match:
+        return match.group(1).lower()
+    return None

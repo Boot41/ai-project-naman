@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import re
 from typing import Any
+
+_RAW_OWNER_ID_PATTERN = re.compile(r"\buser\s*id\s*\d+\b(?:\s*\([^)]*\))?", re.IGNORECASE)
 
 
 def build_presentation(
@@ -59,7 +62,7 @@ def build_presentation(
         snippet = _coerce_str(item.get("snippet"))
         if not (ref or snippet):
             continue
-        evidence_rows.append([ref, source, _truncate(snippet, 220)])
+        evidence_rows.append([ref, _source_label(source), _truncate(snippet, 220)])
     if evidence_rows:
         blocks.append(
             {
@@ -76,7 +79,7 @@ def build_presentation(
             continue
         service_name = _coerce_str(item.get("service_name"))
         owner = _coerce_str(item.get("owner"))
-        if not service_name:
+        if not service_name or not owner or _RAW_OWNER_ID_PATTERN.fullmatch(owner):
             continue
         owner_rows.append([service_name, owner])
     if owner_rows:
@@ -95,7 +98,7 @@ def build_presentation(
             continue
         service_name = _coerce_str(item.get("service_name"))
         contacts = ", ".join(str(contact) for contact in _coerce_list(item.get("contacts")))
-        if not service_name:
+        if not service_name or not contacts.strip():
             continue
         escalation_rows.append([service_name, contacts])
     if escalation_rows:
@@ -223,4 +226,27 @@ def _first_non_empty_str(*values: object) -> str:
 def _truncate(text: str, max_len: int) -> str:
     if len(text) <= max_len:
         return text
-    return text[: max_len - 1].rstrip() + "..."
+    sentence_end = re.search(r"[.!?](?=\s|$)", text[max_len : max_len + 140])
+    if sentence_end:
+        end = max_len + sentence_end.end()
+        return text[:end].strip()
+
+    cut = text[:max_len]
+    endings = list(re.finditer(r"[.!?](?=\s|$)", cut))
+    if endings and endings[-1].end() >= int(max_len * 0.55):
+        return cut[: endings[-1].end()].strip()
+
+    boundary = cut.rfind(" ")
+    if boundary > 0:
+        return cut[:boundary].strip()
+    return cut.strip()
+
+
+def _source_label(source: str) -> str:
+    if source == "db":
+        return "Database"
+    if source == "docs":
+        return "Local document"
+    if source == "session":
+        return "Session memory"
+    return source

@@ -60,7 +60,7 @@ docker-compose up -d db
 cd server
 uv sync --all-extras
 uv run alembic upgrade head
-uv run uvicorn app.main:app --reload --port 8000
+uv run uvicorn app.main:app --reload --port 8020
 
 # Frontend (separate terminal)
 cd client
@@ -68,7 +68,7 @@ npm install
 npm run dev
 ```
 
-App runs at http://localhost:5173 with API proxied to :8000.
+App runs at http://localhost:5173 with API proxied to :8020.
 
 ## Quality Gates
 

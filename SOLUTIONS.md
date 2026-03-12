@@ -50,7 +50,7 @@ ADK Web (adk_app)
 
 - ADK graph root for investigation execution.
 - Runs stage agents in sequence for traceability.
-- Used for ADK Web visualization and runtime entry.
+- Used for ADK Web visualization and API runtime entry.
 
 ### OpsCopilotOrchestratorAgent
 
@@ -58,6 +58,7 @@ ADK Web (adk_app)
 - Classifies request intent/scope.
 - Builds tool retrieval plan.
 - Routes flow to context builder.
+- Applies docs category routing for policy/runbook/postmortem/architecture queries.
 
 ### ContextBuilderAgent
 
@@ -92,6 +93,7 @@ Key execution behavior:
 - **Sequential stages** for reasoning quality and traceability.
 - **Analysis loop** for missing-information recovery before final response.
 - Retrieval tools are still available at agent/tool layer for evidence grounding.
+- API and ADK Web both execute the same `root_agent` path.
 
 ## 5. Tools Layer
 
@@ -108,6 +110,7 @@ Ops-Agent uses a constrained tool set.
 - `get_resolutions`
 - `get_escalation_contacts`
 - `load_session_messages`
+- `get_investigation_bundle`
 
 ### DocsTools
 
@@ -117,6 +120,8 @@ Notes:
 
 - Tool responses use a structured envelope (`ok/data/error/source`).
 - Message persistence is owned by backend server side, not ops-agent orchestration.
+- DB tool path is DB-first with seed fallback (`server/seed_data`) when DB is unavailable.
+- Docs retrieval uses `ops-agent/resources/index.json` + markdown corpus under `ops-agent/resources/**`.
 
 ## 6. Agentic RAG
 
@@ -164,6 +169,7 @@ Handled cases include:
 - **Unknown service** -> no-data tool responses; agent asks for more details.
 - **Insufficient evidence** -> explicit inconclusive response with next actions.
 - **Tool execution failures/timeouts** -> structured error payload, never raw stack traces to user.
+- **Docs-only guidance queries** -> docs-grounded `complete` response when evidence exists.
 
 Design principle:
 
@@ -184,13 +190,15 @@ ops-agent/
   app/main.py                    # /v1/investigate API
   app/service.py                 # service entry
   app/investigation_entry.py     # shared API entrypoint
-  app/investigation_flow.py      # core multi-agent runtime
   app/agents/
     orchestrator_agent.py
     context_builder_agent.py
     incident_analysis_agent.py
     response_composer_agent.py
     runtime.py
+  app/services/
+    enrichment.py
+    output_normalizer.py
   adk_app/
     agent.py                     # ADK Web root agent export
   app/tools/

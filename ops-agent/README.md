@@ -7,7 +7,7 @@ Standalone Google ADK service for OpsCopilot flow validation.
 - `app/main.py`: FastAPI endpoints
 - `app/service.py`: service entrypoints
 - `app/investigation_entry.py`: shared external investigation entry
-- `app/investigation_flow.py`: end-to-end investigation runtime
+- `app/agents/orchestrator_agent.py`: ADK root runtime + API adapter
 - `app/agents/`: 4-stage agent logic + ADK roots
 - `app/contracts/`: stage and API contracts
 - `app/tools/`: tool contracts, docs search, tool registry
@@ -56,6 +56,10 @@ Response:
 
 `User Query -> OpsCopilotOrchestratorAgent -> ContextBuilderAgent -> IncidentAnalysisAgent (loop) -> ResponseComposerAgent -> Structured JSON`
 
+Docs-guidance routing:
+- Policy/runbook/postmortem/architecture queries are routed to local docs retrieval from `resources/`.
+- Responses are expected to include evidence refs from docs (for example `doc:incident_response_policy`).
+
 ## Local Run
 
 1. `cd ops-agent`
@@ -64,9 +68,13 @@ Response:
 4. `uv run uvicorn app.main:app --reload --port 8010`
 
 Execution note:
-- API `/v1/investigate` executes the shared investigation runtime (`run_investigation_pipeline`).
-- ADK Web uses the graph-visible `root_agent` export from `adk_app/agent.py`.
-- Both paths use the same stage agents and tool contracts.
+- API `/v1/investigate` executes ADK `root_agent` runtime via `run_investigation_via_root_agent`.
+- ADK Web uses the same graph-visible `root_agent` export from `adk_app/agent.py`.
+- Both paths now run through the same ADK stage-graph behavior.
+- Tool/data fallback behavior:
+  - DB-first for incident/service data tools.
+  - Seed fallback from `server/seed_data` when DB is unavailable.
+  - Docs retrieval from `ops-agent/resources` index and markdown corpus.
 
 ## ADK Web Run (Manual Testing)
 

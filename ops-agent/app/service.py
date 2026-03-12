@@ -1,7 +1,7 @@
 from __future__ import annotations
 
+from app.contracts.investigation_result import InvestigationResult
 from app.investigation_entry import run_investigation_entrypoint
-from app.investigation_flow import InvestigationResult
 
 
 async def investigate(

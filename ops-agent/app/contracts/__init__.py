@@ -7,6 +7,11 @@ from app.contracts.incident_analysis import (
     IterationSummary,
     LoopRuntimePolicy,
 )
+from app.contracts.investigation_result import (
+    InvestigationResult,
+    PipelineErrorCode,
+    PipelineErrorPayload,
+)
 from app.contracts.orchestrator import (
     ContextSeed,
     InvestigationScope,
@@ -30,11 +35,14 @@ __all__ = [
     "IncidentAnalysisInput",
     "IncidentAnalysisOutput",
     "InvestigationScope",
+    "InvestigationResult",
     "IterationSummary",
     "LoopRuntimePolicy",
     "OrchestratorInput",
     "OrchestratorOutput",
     "OutputStatus",
+    "PipelineErrorCode",
+    "PipelineErrorPayload",
     "RoutingTarget",
     "SessionMetadata",
     "ToolPlanItem",
