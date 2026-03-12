@@ -1,3 +1,4 @@
-from app.agents.orchestrator_agent import root_agent, run_opscopilot_pipeline
+from app.agents.orchestrator_agent import root_agent
+from app.agents.orchestrator_runtime import run_opscopilot_pipeline
 
 __all__ = ["root_agent", "run_opscopilot_pipeline"]
