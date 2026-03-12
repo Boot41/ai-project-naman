@@ -169,6 +169,21 @@ def _normalize_orchestrator_output(
             ]
         )
 
+    if (
+        output.investigation_scope == InvestigationScope.OWNERSHIP
+        and incident_key
+        and not service_name
+        and not any(i.tool == "get_incident_services" for i in normalized_plan)
+    ):
+        normalized_plan.append(
+            ToolPlanItem(
+                tool="get_incident_services",
+                args={"incident_key": incident_key},
+                priority=ToolPriority.HIGH,
+                reason="Resolve impacted services before ownership lookup.",
+            )
+        )
+
     if incident_key:
         has_incident_lookup = any(
             i.tool == "get_incident_by_key" for i in normalized_plan

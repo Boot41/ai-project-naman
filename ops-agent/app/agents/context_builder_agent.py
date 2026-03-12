@@ -124,6 +124,7 @@ async def context_builder_with_adk_or_fallback(
                     ),
                     owner=(
                         str(item.get("owner") or "").strip()
+                        or str(item.get("owner_name") or "").strip()
                         or str(item.get("owner_full_name") or "").strip()
                         or str(item.get("owner_username") or "").strip()
                         or None

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 from dataclasses import dataclass
 from enum import Enum
 from time import perf_counter
@@ -33,6 +34,8 @@ from app.tools.contracts import make_error_response, make_no_data_response
 
 logger = logging.getLogger(__name__)
 ToolFn = Callable[..., dict[str, Any]]
+_INCIDENT_KEY_PATTERN = re.compile(r"\bINC-(?:\d{4}-\d{4}|\d+)\b", re.IGNORECASE)
+_SERVICE_PATTERN = re.compile(r"\b([a-z0-9-]+-service)\b", re.IGNORECASE)
 
 
 class PipelineErrorCode(str, Enum):
@@ -96,6 +99,15 @@ async def run_investigation_pipeline(
         try:
             from app.agents.orchestrator_agent import orchestrate_with_adk_or_fallback
 
+            seed_incident_key, seed_service_name, history_rows = (
+                _resolve_context_seed_from_history(
+                    session_id=str(session_uuid),
+                    query=query,
+                    incident_key=incident_key,
+                    service_name=service_name,
+                )
+            )
+
             start = perf_counter()
             orchestrator_output = await orchestrate_with_adk_or_fallback(
                 OrchestratorInput(
@@ -103,8 +115,8 @@ async def run_investigation_pipeline(
                     session_id=session_uuid,
                     user_id=user_id,
                     query=query,
-                    incident_key=incident_key,
-                    service_name=service_name,
+                    incident_key=seed_incident_key,
+                    service_name=seed_service_name,
                 )
             )
             logs.append(
@@ -124,6 +136,19 @@ async def run_investigation_pipeline(
             merged = await _fan_out_retrieval(
                 [item.model_dump() for item in orchestrator_output.tool_plan]
             )
+            merged["session_history"] = _merge_unique_records(
+                history_rows, merged["session_history"]
+            )
+            if (
+                orchestrator_output.investigation_scope.value == "ownership"
+                and orchestrator_output.context_seed.incident_key
+            ):
+                _enrich_services_with_owner_escalation(
+                    services=merged["services"],
+                    incident_key=orchestrator_output.context_seed.incident_key,
+                    service_name=orchestrator_output.context_seed.service_name,
+                )
+            _backfill_service_owners(services=merged["services"])
             logs.append(
                 _step_log(
                     trace_id=trace_id,
@@ -534,6 +559,198 @@ def _error_result(
         logs=logs,
         persistence=None,
     )
+
+
+def _resolve_context_seed_from_history(
+    *,
+    session_id: str,
+    query: str,
+    incident_key: str | None,
+    service_name: str | None,
+) -> tuple[str | None, str | None, list[dict[str, Any]]]:
+    resolved_incident = (incident_key or "").strip().upper() or _extract_incident_key(query)
+    resolved_service = (service_name or "").strip().lower() or _extract_service_name(query)
+    session_history: list[dict[str, Any]] = []
+
+    if resolved_incident and resolved_service:
+        return resolved_incident, resolved_service, session_history
+
+    history_response = load_session_messages(session_id=session_id, limit=30)
+    if not history_response.get("ok", False):
+        return resolved_incident, resolved_service, session_history
+    rows = history_response.get("data", [])
+    if not isinstance(rows, list):
+        return resolved_incident, resolved_service, session_history
+    session_history = [row for row in rows if isinstance(row, dict)]
+
+    for row in reversed(session_history):
+        content_text = str(row.get("content_text") or "")
+        structured = row.get("structured_json")
+
+        if not resolved_incident:
+            resolved_incident = _extract_incident_key(content_text) or _extract_from_any(
+                structured, _INCIDENT_KEY_PATTERN
+            )
+
+        if not resolved_service:
+            resolved_service = _extract_service_name(content_text) or _extract_from_any(
+                structured, _SERVICE_PATTERN, group=1
+            )
+
+        if resolved_incident and resolved_service:
+            break
+
+    return resolved_incident, resolved_service, session_history
+
+
+def _extract_incident_key(text: str) -> str | None:
+    match = _INCIDENT_KEY_PATTERN.search(text)
+    return match.group(0).upper() if match else None
+
+
+def _extract_service_name(text: str) -> str | None:
+    match = _SERVICE_PATTERN.search(text)
+    return match.group(1).lower() if match else None
+
+
+def _extract_from_any(
+    value: Any, pattern: re.Pattern[str], *, group: int = 0, max_nodes: int = 600
+) -> str | None:
+    queue: list[Any] = [value]
+    visited = 0
+    while queue and visited < max_nodes:
+        node = queue.pop(0)
+        visited += 1
+        if isinstance(node, str):
+            match = pattern.search(node)
+            if match:
+                return match.group(group)
+            continue
+        if isinstance(node, dict):
+            queue.extend(node.values())
+            continue
+        if isinstance(node, list):
+            queue.extend(node)
+    return None
+
+
+def _enrich_services_with_owner_escalation(
+    *,
+    services: list[dict[str, Any]],
+    incident_key: str,
+    service_name: str | None,
+) -> None:
+    targets: list[str] = []
+    if service_name:
+        targets.append(service_name)
+    if not targets:
+        by_incident = get_incident_services(incident_key=incident_key)
+        rows = by_incident.get("data", []) if isinstance(by_incident, dict) else []
+        if isinstance(rows, list):
+            for row in rows:
+                if not isinstance(row, dict):
+                    continue
+                name = str(row.get("service_name") or "").strip().lower()
+                if name:
+                    targets.append(name)
+
+    unique_targets = sorted(set(targets))
+    if not unique_targets:
+        return
+
+    owner_rows: list[dict[str, Any]] = []
+    escalation_map: dict[str, list[str]] = {}
+    for target in unique_targets:
+        owner_payload = get_service_owner(service_name=target)
+        owner_data = owner_payload.get("data", []) if isinstance(owner_payload, dict) else []
+        if isinstance(owner_data, list):
+            for row in owner_data:
+                if isinstance(row, dict):
+                    owner_rows.append(dict(row))
+
+        escalation_payload = get_escalation_contacts(service_name=target)
+        escalation_data = (
+            escalation_payload.get("data", []) if isinstance(escalation_payload, dict) else []
+        )
+        contacts: list[str] = []
+        if isinstance(escalation_data, list):
+            for row in escalation_data:
+                if not isinstance(row, dict):
+                    continue
+                label = str(row.get("name") or "").strip()
+                channel = str(row.get("contact_type") or "").strip()
+                value = str(row.get("contact_value") or "").strip()
+                if label and channel and value:
+                    contacts.append(f"{label} ({channel}: {value})")
+                elif label and value:
+                    contacts.append(f"{label} ({value})")
+                elif value:
+                    contacts.append(value)
+        if contacts:
+            escalation_map[target] = contacts
+
+    if not owner_rows and not escalation_map:
+        return
+
+    for owner in owner_rows:
+        service = str(owner.get("service_name") or "").strip().lower()
+        if service and escalation_map.get(service):
+            owner["escalation_contacts"] = escalation_map[service]
+
+    merged = _merge_unique_records(services, owner_rows)
+    services.clear()
+    services.extend(merged)
+
+
+def _backfill_service_owners(*, services: list[dict[str, Any]]) -> None:
+    if not services:
+        return
+
+    service_names = sorted(
+        {
+            str(row.get("service_name") or row.get("name") or "").strip().lower()
+            for row in services
+            if isinstance(row, dict)
+        }
+        - {""}
+    )
+    if not service_names:
+        return
+
+    owner_rows: list[dict[str, Any]] = []
+    for service in service_names:
+        has_owner = any(
+            (
+                str(row.get("service_name") or row.get("name") or "").strip().lower()
+                == service
+            )
+            and any(
+                row.get(k)
+                for k in (
+                    "owner",
+                    "owner_name",
+                    "owner_full_name",
+                    "owner_username",
+                    "owner_email",
+                )
+            )
+            for row in services
+            if isinstance(row, dict)
+        )
+        if has_owner:
+            continue
+
+        payload = get_service_owner(service_name=service)
+        data = payload.get("data", []) if isinstance(payload, dict) else []
+        if isinstance(data, list):
+            owner_rows.extend(dict(item) for item in data if isinstance(item, dict))
+
+    if not owner_rows:
+        return
+
+    merged = _merge_unique_records(services, owner_rows)
+    services.clear()
+    services.extend(merged)
 
 
 def _elapsed_ms(start: float) -> int:

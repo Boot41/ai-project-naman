@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+
 from google.adk.agents import Agent
 
 from app.agents.runtime import build_stage_agent, run_json_stage_with_timeout
@@ -12,6 +14,7 @@ from app.contracts.response_composer import (
     OwnerItem,
     SimilarIncidentItem,
 )
+_RAW_OWNER_ID_PATTERN = re.compile(r"\buser\s*id\s*\d+\b(?:\s*\([^)]*\))?", re.IGNORECASE)
 
 AGENT_NAME = "ResponseComposerAgent"
 RESPONSE_COMPOSER_PROMPT = """
@@ -53,13 +56,14 @@ def build_response_composer_agent() -> Agent:
 
 async def composer_with_adk_or_fallback(payload: ComposerInput) -> ComposerOutput:
     try:
-        return await run_json_stage_with_timeout(
+        output = await run_json_stage_with_timeout(
             agent=response_composer_agent,
             payload=payload,
             output_model=ComposerOutput,
             user_id=str(payload.session_id),
             timeout_seconds=45,
         )
+        return _normalize_output_sources(output, payload)
     except Exception:
         pass
 
@@ -138,3 +142,61 @@ async def composer_with_adk_or_fallback(payload: ComposerInput) -> ComposerOutpu
         report=report,
         status=payload.status,
     )
+
+
+def _normalize_output_sources(output: ComposerOutput, payload: ComposerInput) -> ComposerOutput:
+    db_refs = {item.event_id for item in payload.context_content.important_events}
+    doc_refs = {item.doc_id for item in payload.context_content.documentation_findings}
+
+    normalized: list[EvidenceItem] = []
+    for item in output.evidence:
+        source = item.source
+        if item.ref in db_refs:
+            source = "db"
+        elif item.ref in doc_refs:
+            source = "docs"
+        normalized.append(item.model_copy(update={"source": source}))
+
+    cleaned_owners: list[OwnerItem] = []
+    for owner in output.owners:
+        owner_value = _clean_owner_text(owner.owner)
+        cleaned_owners.append(owner.model_copy(update={"owner": owner_value}))
+
+    cleaned_summary = _sanitize_text(output.summary)
+    cleaned_actions = [_sanitize_text(action) for action in output.recommended_actions]
+    cleaned_report = _sanitize_text(output.report)
+
+    cleaned_hypotheses = [
+        hypothesis.model_copy(
+            update={
+                "cause": _sanitize_text(hypothesis.cause),
+                "reasoning_summary": _sanitize_text(hypothesis.reasoning_summary),
+            }
+        )
+        for hypothesis in output.hypotheses
+    ]
+    cleaned_evidence = [
+        item.model_copy(update={"snippet": _sanitize_text(item.snippet)}) for item in normalized
+    ]
+
+    return output.model_copy(
+        update={
+            "summary": cleaned_summary,
+            "evidence": cleaned_evidence,
+            "owners": cleaned_owners,
+            "recommended_actions": cleaned_actions,
+            "report": cleaned_report,
+            "hypotheses": cleaned_hypotheses,
+        }
+    )
+
+
+def _sanitize_text(value: str) -> str:
+    return _RAW_OWNER_ID_PATTERN.sub("service owner", value).strip()
+
+
+def _clean_owner_text(owner: str | None) -> str | None:
+    if owner is None:
+        return None
+    cleaned = _RAW_OWNER_ID_PATTERN.sub("", owner).strip(" -:()")
+    return cleaned or None
